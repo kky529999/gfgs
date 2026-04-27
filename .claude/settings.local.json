@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"D:\\\\code\\\\gfgs\\\\src\\\\app\" /b)",
+      "Bash(npm run *)"
+    ]
+  }
+}
