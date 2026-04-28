@@ -1,10 +1,39 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { supabase } from '@/lib/supabase';
 import { getAuthCookie } from '@/lib/auth/cookie';
 import { refreshSessionAction } from '@/lib/auth/actions';
 import type { WarehouseMaterial, StockMovement, StockMovementType, WarehouseStatus } from '@/types';
+import { formatZodError } from '@/lib/validators';
+
+// Validation schemas
+const createWarehouseMaterialSchema = z.object({
+  brand: z.string().min(1, '请输入品牌').max(100, '品牌不能超过100个字符'),
+  model: z.string().max(100, '型号不能超过100个字符').optional().nullable(),
+  quantity: z.number({ error: '请输入数量' }).int('数量必须为整数').min(0, '数量不能为负数'),
+  unit: z.string().max(20, '单位不能超过20个字符').optional().nullable(),
+  note: z.string().max(500, '备注不能超过500个字符').optional().nullable(),
+});
+
+const updateWarehouseMaterialSchema = z.object({
+  brand: z.string().min(1, '请输入品牌').max(100, '品牌不能超过100个字符').optional(),
+  model: z.string().max(100, '型号不能超过100个字符').optional().nullable(),
+  quantity: z.number({ error: '请输入数量' }).int('数量必须为整数').min(0, '数量不能为负数').optional(),
+  unit: z.string().max(20, '单位不能超过20个字符').optional().nullable(),
+  status: z.enum(['in_stock', 'low_stock', 'out', 'reserved'] as const).optional(),
+  note: z.string().max(500, '备注不能超过500个字符').optional().nullable(),
+});
+
+const createStockMovementSchema = z.object({
+  material_id: z.string().uuid('无效的材料ID'),
+  type: z.enum(['inbound', 'outbound', 'adjustment'] as const, { error: '请选择类型' }),
+  quantity: z.number({ error: '请输入数量' }).int('数量必须为正数').min(1, '数量必须为正数'),
+  customer_id: z.string().uuid('无效的客户ID').optional().nullable(),
+  record_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的日期'),
+  note: z.string().max(500, '备注不能超过500个字符').optional().nullable(),
+});
 
 // Helper to check admin/gm permission
 async function checkAdminPermission(): Promise<{ allowed: boolean; error?: string }> {
@@ -112,6 +141,12 @@ export async function createWarehouseMaterialAction(
     return { success: false, error: permission.error };
   }
 
+  // Input validation
+  const parsed = createWarehouseMaterialSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: formatZodError(parsed.error) };
+  }
+
   try {
     const { data, error } = await supabase
       .from('warehouse_materials')
@@ -152,6 +187,12 @@ export async function updateWarehouseMaterialAction(
   const permission = await checkAdminPermission();
   if (!permission.allowed) {
     return { success: false, error: permission.error };
+  }
+
+  // Input validation
+  const parsed = updateWarehouseMaterialSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: formatZodError(parsed.error) };
   }
 
   try {
@@ -291,6 +332,12 @@ export async function createStockMovementAction(
   const permission = await checkAdminPermission();
   if (!permission.allowed) {
     return { success: false, error: permission.error };
+  }
+
+  // Input validation
+  const parsed = createStockMovementSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: formatZodError(parsed.error) };
   }
 
   try {

@@ -2,6 +2,7 @@
 
 import { supabase } from '@/lib/supabase';
 import { getAuthCookie } from '@/lib/auth/cookie';
+import { createCommissionSchema } from '@/lib/validators';
 import type { Commission, CommissionWithRelations, CreateCommissionInput, UpdateCommissionStatusInput, CommissionStatus, CommissionType } from '@/types/commission';
 
 // 获取提成列表（带角色过滤）
@@ -186,6 +187,12 @@ export async function createCommissionAction(input: CreateCommissionInput): Prom
   const auth = await getAuthCookie();
   if (!auth) {
     return { success: false, error: '未登录' };
+  }
+
+  // Input validation
+  const parsed = createCommissionSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message || '输入验证失败' };
   }
 
   // 只有 admin 和 gm 可以手动创建提成

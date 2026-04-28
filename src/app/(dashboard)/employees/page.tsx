@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { getEmployeesAction, getDepartmentsAction, getDefaultPassword } from '@/lib/employees/actions';
+import { getEmployeesAction, getDepartmentsAction } from '@/lib/employees/actions';
+import { DEFAULT_PASSWORD } from '@/lib/constants';
 import { getAuthCookie } from '@/lib/auth/cookie';
 import { EmployeeListClient } from './_components/EmployeeListClient';
 
@@ -31,7 +32,7 @@ export default async function EmployeesPage() {
 
   const employees = employeesResult.data || [];
   const departments = departmentsResult.data || [];
-  const defaultPassword = getDefaultPassword();
+  const defaultPassword = DEFAULT_PASSWORD;
 
   return (
     <div className="space-y-6">

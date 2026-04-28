@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getAuthCookie } from '@/lib/auth/cookie';
+import { createCustomerSchema, updateCustomerSchema } from '@/lib/validators';
 import type {
   Customer,
   CustomerWithRelations,
@@ -122,6 +123,12 @@ export async function createCustomerAction(
     return { success: false, error: '未登录' };
   }
 
+  // Input validation
+  const parsed = createCustomerSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message || '输入验证失败' };
+  }
+
   try {
     // Use supabaseAdmin for consistent data access (service role key bypasses RLS)
     // Set default salesperson if business role
@@ -183,6 +190,12 @@ export async function updateCustomerAction(
   const auth = await getAuthCookie();
   if (!auth) {
     return { success: false, error: '未登录' };
+  }
+
+  // Input validation
+  const parsed = updateCustomerSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message || '输入验证失败' };
   }
 
   try {

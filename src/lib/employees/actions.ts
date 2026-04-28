@@ -5,13 +5,10 @@ import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getAuthCookie } from '@/lib/auth/cookie';
 import { refreshSessionAction } from '@/lib/auth/actions';
+import { createEmployeeSchema, updateEmployeeSchema } from '@/lib/validators';
 import type { Employee, Department } from '@/types';
 import { DEFAULT_PASSWORD } from '@/lib/constants';
 
-// Get default password for UI display
-export function getDefaultPassword(): string {
-  return DEFAULT_PASSWORD;
-}
 
 // Helper to check admin/gm permission
 async function checkAdminPermission(): Promise<{ allowed: boolean; error?: string }> {
@@ -147,7 +144,13 @@ export async function createEmployeeAction(
     return { success: false, error: permission.error };
   }
 
-    try {
+  // Input validation
+  const parsed = createEmployeeSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message || '输入验证失败' };
+  }
+
+  try {
     // Check if phone already exists
     const { data: existing } = await supabaseAdmin
       .from('employees')
@@ -206,6 +209,12 @@ export async function updateEmployeeAction(
   const permission = await checkAdminPermission();
   if (!permission.allowed) {
     return { success: false, error: permission.error };
+  }
+
+  // Input validation
+  const parsed = updateEmployeeSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message || '输入验证失败' };
   }
 
   try {
