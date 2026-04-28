@@ -1,10 +1,46 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { supabase } from '@/lib/supabase';
 import { getAuthCookie } from '@/lib/auth/cookie';
 import { refreshSessionAction } from '@/lib/auth/actions';
 import type { BrandPolicy } from '@/types';
+import { formatZodError } from '@/lib/validators';
+
+// Validation schemas
+const createBrandPolicySchema = z.object({
+  brand: z.string().min(1, '请输入品牌').max(100, '品牌不能超过100个字符'),
+  city: z.string().max(100, '城市不能超过100个字符').optional().nullable(),
+  effective_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的开始日期'),
+  effective_to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的结束日期').optional().nullable(),
+  installation_fee: z.number({ error: '请输入安装费' }).min(0, '安装费不能为负数').optional(),
+  comprehensive_subsidy: z.number({ error: '请输入综合补贴' }).min(0, '综合补贴不能为负数').optional(),
+  channel_fee: z.number({ error: '请输入渠道费' }).min(0, '渠道费不能为负数').optional(),
+  install_days: z.number({ error: '请输入安装天数' }).int('安装天数必须为整数').min(0, '安装天数不能为负数').optional(),
+  grid_penalty: z.string().max(500, '并网处罚不能超过500个字符').optional().nullable(),
+  monthly_target: z.number({ error: '请输入月度目标' }).min(0, '月度目标不能为负数').optional().nullable(),
+  inspection_reward: z.number({ error: '请输入验仓奖励' }).min(0, '验仓奖励不能为负数').optional(),
+  quality_bond: z.number({ error: '请输入质量保证金' }).min(0, '质量保证金不能为负数').optional().nullable(),
+  note: z.string().max(500, '备注不能超过500个字符').optional().nullable(),
+});
+
+const updateBrandPolicySchema = z.object({
+  brand: z.string().min(1, '请输入品牌').max(100, '品牌不能超过100个字符').optional(),
+  city: z.string().max(100, '城市不能超过100个字符').optional().nullable(),
+  effective_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的开始日期').optional(),
+  effective_to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的结束日期').optional().nullable(),
+  installation_fee: z.number({ error: '请输入安装费' }).min(0, '安装费不能为负数').optional(),
+  comprehensive_subsidy: z.number({ error: '请输入综合补贴' }).min(0, '综合补贴不能为负数').optional(),
+  channel_fee: z.number({ error: '请输入渠道费' }).min(0, '渠道费不能为负数').optional(),
+  install_days: z.number({ error: '请输入安装天数' }).int('安装天数必须为整数').min(0, '安装天数不能为负数').optional(),
+  grid_penalty: z.string().max(500, '并网处罚不能超过500个字符').optional().nullable(),
+  monthly_target: z.number({ error: '请输入月度目标' }).min(0, '月度目标不能为负数').optional().nullable(),
+  inspection_reward: z.number({ error: '请输入验仓奖励' }).min(0, '验仓奖励不能为负数').optional(),
+  quality_bond: z.number({ error: '请输入质量保证金' }).min(0, '质量保证金不能为负数').optional().nullable(),
+  note: z.string().max(500, '备注不能超过500个字符').optional().nullable(),
+  is_active: z.boolean({ error: '请选择是否生效' }).optional(),
+});
 
 // Helper to check admin/gm permission
 async function checkAdminPermission(): Promise<{ allowed: boolean; error?: string }> {
@@ -128,6 +164,12 @@ export async function createBrandPolicyAction(
     return { success: false, error: permission.error };
   }
 
+  // Input validation
+  const parsed = createBrandPolicySchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: formatZodError(parsed.error) };
+  }
+
   try {
     // Get auth employee ID
     const auth = await getAuthCookie();
@@ -209,6 +251,12 @@ export async function updateBrandPolicyAction(
   const permission = await checkAdminPermission();
   if (!permission.allowed) {
     return { success: false, error: permission.error };
+  }
+
+  // Input validation
+  const parsed = updateBrandPolicySchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: formatZodError(parsed.error) };
   }
 
   try {

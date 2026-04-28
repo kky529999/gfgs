@@ -1,10 +1,45 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { supabase } from '@/lib/supabase';
 import { getAuthCookie } from '@/lib/auth/cookie';
 import { refreshSessionAction } from '@/lib/auth/actions';
 import type { Dealer, DealerDeposit } from '@/types';
+import { formatZodError } from '@/lib/validators';
+
+// Validation schemas
+const createDealerSchema = z.object({
+  name: z.string().min(1, '请输入二级商名称').max(100, '名称不能超过100个字符'),
+  contact: z.string().max(100, '联系人不能超过100个字符').optional().nullable(),
+  phone: z.string().regex(/^1[3-9]\d{9}$/, '请输入有效的手机号').optional().nullable(),
+  contract_no: z.string().max(100, '合同编号不能超过100个字符').optional().nullable(),
+  deposit_amount: z.number({ error: '请输入押金金额' }).min(0, '押金金额不能为负数').optional(),
+  fee_per_panel: z.number({ error: '请输入单板费用' }).min(0, '单板费用不能为负数').optional(),
+  note: z.string().max(500, '备注不能超过500个字符').optional().nullable(),
+});
+
+const updateDealerSchema = z.object({
+  name: z.string().min(1, '请输入二级商名称').max(100, '名称不能超过100个字符').optional(),
+  contact: z.string().max(100, '联系人不能超过100个字符').optional().nullable(),
+  phone: z.string().regex(/^1[3-9]\d{9}$/, '请输入有效的手机号').optional().nullable(),
+  contract_no: z.string().max(100, '合同编号不能超过100个字符').optional().nullable(),
+  contract_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的日期').optional().nullable(),
+  contract_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的日期').optional().nullable(),
+  deposit_amount: z.number({ error: '请输入押金金额' }).min(0, '押金金额不能为负数').optional(),
+  deposit_paid: z.number({ error: '请输入已付押金' }).min(0, '已付押金不能为负数').optional(),
+  deposit_status: z.enum(['unpaid', 'partial', 'paid', 'refunded'] as const).optional(),
+  fee_per_panel: z.number({ error: '请输入单板费用' }).min(0, '单板费用不能为负数').optional(),
+  status: z.enum(['active', 'terminated'] as const).optional(),
+  note: z.string().max(500, '备注不能超过500个字符').optional().nullable(),
+});
+
+const addDealerDepositSchema = z.object({
+  amount: z.number({ error: '请输入押金金额' }).positive('押金金额必须为正数'),
+  type: z.enum(['pay', 'refund'] as const, { error: '请选择类型' }),
+  record_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的日期'),
+  note: z.string().max(500, '备注不能超过500个字符').optional().nullable(),
+});
 
 // Helper to check admin/gm permission
 async function checkAdminPermission(): Promise<{ allowed: boolean; error?: string }> {
@@ -119,6 +154,12 @@ export async function createDealerAction(
     return { success: false, error: permission.error };
   }
 
+  // Input validation
+  const parsed = createDealerSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: formatZodError(parsed.error) };
+  }
+
   try {
     // Check if name already exists
     const { data: existing } = await supabase
@@ -174,6 +215,12 @@ export async function updateDealerAction(
   const permission = await checkAdminPermission();
   if (!permission.allowed) {
     return { success: false, error: permission.error };
+  }
+
+  // Input validation
+  const parsed = updateDealerSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: formatZodError(parsed.error) };
   }
 
   try {
@@ -279,6 +326,12 @@ export async function addDealerDepositAction(
   const permission = await checkAdminPermission();
   if (!permission.allowed) {
     return { success: false, error: permission.error };
+  }
+
+  // Input validation
+  const parsed = addDealerDepositSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: formatZodError(parsed.error) };
   }
 
   try {
