@@ -1,7 +1,7 @@
 'use server';
 
 import * as XLSX from 'xlsx';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getAuthCookie } from '@/lib/auth/cookie';
 import { parseExcelFile } from './excel-utils';
 import type { CustomerStage, CustomerType, CreateCustomerInput } from '@/types/customer';
@@ -248,7 +248,7 @@ export async function importCustomersFromExcelAction(
     }
 
     // Build employee name to ID map for salesperson/tech mapping
-    const { data: employees } = await supabase
+    const { data: employees } = await supabaseAdmin
       .from('employees')
       .select('id, name, phone');
 
@@ -308,7 +308,7 @@ export async function importCustomersFromExcelAction(
     }
 
     // Insert customers
-    const { error: insertError } = await supabase
+    const { error: insertError } = await supabaseAdmin
       .from('customers')
       .insert(customers);
 

@@ -1,10 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
-import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getAuthCookie } from '@/lib/auth/cookie';
-import { refreshSessionAction } from '@/lib/auth/actions';
 import type {
   Customer,
   CustomerWithRelations,
@@ -13,7 +11,6 @@ import type {
   AdvanceStageInput,
   CustomerStage,
 } from '@/types/customer';
-import { STAGE_ORDER } from '@/types/customer';
 
 // Get all customers (with role-based filtering)
 export async function getCustomersAction(): Promise<{
@@ -27,18 +24,16 @@ export async function getCustomersAction(): Promise<{
   }
 
   try {
-    await refreshSessionAction();
-
-    // Use supabaseAdmin to bypass RLS for admin/gm access
-    // This ensures admin users can see all customers
+    // supabaseAdmin uses service role key, bypassing RLS entirely
+    // No need to call refreshSessionAction() - it uses anon client which
+    // creates a different connection context
     let query = supabaseAdmin
       .from('customers')
       .select(
         `
         *,
         salesperson:employees!salesperson_id(id, name, phone),
-        tech_assigned:employees!tech_assigned_id(id, name, phone),
-        dealer:dealers(id, name)
+        tech_assigned:employees!tech_assigned_id(id, name, phone)
       `
       )
       .order('created_at', { ascending: false });
@@ -54,7 +49,7 @@ export async function getCustomersAction(): Promise<{
     const { data, error } = await query;
 
     if (error) {
-      console.error('Error fetching customers:', error);
+      console.error('Error fetching customers:', JSON.stringify(error, null, 2));
       return { success: false, error: '获取客户列表失败' };
     }
 
@@ -79,24 +74,21 @@ export async function getCustomerAction(
   }
 
   try {
-    await refreshSessionAction();
-
-    // Use supabaseAdmin for consistent data access
+    // Use supabaseAdmin for consistent data access (service role key bypasses RLS)
     const { data, error } = await supabaseAdmin
       .from('customers')
       .select(
         `
         *,
         salesperson:employees!salesperson_id(id, name, phone),
-        tech_assigned:employees!tech_assigned_id(id, name, phone),
-        dealer:dealers(id, name)
+        tech_assigned:employees!tech_assigned_id(id, name, phone)
       `
       )
       .eq('id', customerId)
       .single();
 
     if (error) {
-      console.error('Error fetching customer:', error);
+      console.error('Error fetching customer:', JSON.stringify(error, null, 2));
       return { success: false, error: '获取客户信息失败' };
     }
 
@@ -131,8 +123,7 @@ export async function createCustomerAction(
   }
 
   try {
-    await refreshSessionAction();
-
+    // Use supabaseAdmin for consistent data access (service role key bypasses RLS)
     // Set default salesperson if business role
     const salespersonId =
       input.salesperson_id ||
@@ -195,9 +186,8 @@ export async function updateCustomerAction(
   }
 
   try {
-    await refreshSessionAction();
-
-    // Check access permission first (use supabaseAdmin for consistency)
+    // Use supabaseAdmin for consistent data access (service role key bypasses RLS)
+    // Check access permission first
     const { data: existing } = await supabaseAdmin
       .from('customers')
       .select('salesperson_id, tech_assigned_id')
@@ -255,9 +245,8 @@ export async function advanceStageAction(
   }
 
   try {
-    await refreshSessionAction();
-
-    // Get current customer state (use supabaseAdmin for consistency)
+    // Use supabaseAdmin for consistent data access (service role key bypasses RLS)
+    // Get current customer state
     const { data: customer, error: fetchError } = await supabaseAdmin
       .from('customers')
       .select('current_stage, salesperson_id, tech_assigned_id')
@@ -324,7 +313,7 @@ export async function advanceStageAction(
 // Get employees for assignment dropdown
 export async function getEmployeesAction(): Promise<{
   success: boolean;
-  data?: Array<{ id: string; name: string; phone: string; role: string }>;
+  data?: Array<{ id: string; name: string; phone: string; department_code: string | null; title: string }>;
   error?: string;
 }> {
   const auth = await getAuthCookie();
@@ -332,18 +321,21 @@ export async function getEmployeesAction(): Promise<{
     return { success: false, error: '未登录' };
   }
 
-  // Only admin/gm can assign employees
-  if (auth.role !== 'admin' && auth.role !== 'gm') {
-    return { success: false, error: '无权访问' };
-  }
+  // All authenticated users can view employee list for assignment
+  // Role-based filtering is applied when rendering the dropdown
 
   try {
-    await refreshSessionAction();
-
-    // Use supabaseAdmin for consistent data access
+    // Use supabaseAdmin for consistent data access (service role key bypasses RLS)
+    // Join with departments to get the department code (which determines role)
     const { data, error } = await supabaseAdmin
       .from('employees')
-      .select('id, name, phone, role')
+      .select(`
+        id,
+        name,
+        phone,
+        title,
+        department:departments(code)
+      `)
       .eq('is_active', true)
       .order('name');
 
@@ -352,7 +344,16 @@ export async function getEmployeesAction(): Promise<{
       return { success: false, error: '获取员工列表失败' };
     }
 
-    return { success: true, data };
+    // Transform the data to flatten the department relation
+    const employees = (data || []).map((emp: Record<string, unknown>) => ({
+      id: emp.id as string,
+      name: emp.name as string,
+      phone: emp.phone as string,
+      title: (emp.title as string) || '',
+      department_code: (emp.department as { code: string } | null)?.code || null,
+    }));
+
+    return { success: true, data: employees };
   } catch (err) {
     console.error('Unexpected error:', err);
     return { success: false, error: '系统错误' };
@@ -371,9 +372,7 @@ export async function getDealersAction(): Promise<{
   }
 
   try {
-    await refreshSessionAction();
-
-    // Use supabaseAdmin for consistent data access
+    // Use supabaseAdmin for consistent data access (service role key bypasses RLS)
     const { data, error } = await supabaseAdmin
       .from('dealers')
       .select('id, name')

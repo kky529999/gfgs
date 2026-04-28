@@ -49,6 +49,9 @@ export function SalaryClient() {
 
   useEffect(() => {
     loadEmployees();
+  }, []);
+
+  useEffect(() => {
     loadRecords();
   }, [yearMonth]);
 
@@ -194,41 +197,41 @@ export function SalaryClient() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="bg-white rounded-xl shadow-sm p-4">
-          <div className="text-sm text-gray-500">底薪合计</div>
-          <div className="text-xl font-bold text-gray-900 mt-1">
+        <div className="bg-white rounded-xl p-5 border border-gray-100 hover:border-gray-200 hover:shadow-subtle transition-all duration-200">
+          <p className="text-xs text-gray-500 uppercase tracking-wide">底薪合计</p>
+          <p className="text-xl font-semibold text-gray-900 mt-1.5 tracking-tight">
             {totalBase.toLocaleString('zh-CN', { minimumFractionDigits: 2 })} 元
-          </div>
+          </p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4">
-          <div className="text-sm text-gray-500">提成合计</div>
-          <div className="text-xl font-bold text-green-600 mt-1">
+        <div className="bg-white rounded-xl p-5 border border-gray-100 hover:border-gray-200 hover:shadow-subtle transition-all duration-200">
+          <p className="text-xs text-gray-500 uppercase tracking-wide">提成合计</p>
+          <p className="text-xl font-semibold text-green-600 mt-1.5 tracking-tight">
             {totalCommission.toLocaleString('zh-CN', { minimumFractionDigits: 2 })} 元
-          </div>
+          </p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4">
-          <div className="text-sm text-gray-500">成长基金</div>
-          <div className="text-xl font-bold text-orange-600 mt-1">
+        <div className="bg-white rounded-xl p-5 border border-gray-100 hover:border-gray-200 hover:shadow-subtle transition-all duration-200">
+          <p className="text-xs text-gray-500 uppercase tracking-wide">成长基金</p>
+          <p className="text-xl font-semibold text-orange-600 mt-1.5 tracking-tight">
             {totalFund.toLocaleString('zh-CN', { minimumFractionDigits: 2 })} 元
-          </div>
+          </p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4">
-          <div className="text-sm text-gray-500">其他</div>
-          <div className="text-xl font-bold text-purple-600 mt-1">
+        <div className="bg-white rounded-xl p-5 border border-gray-100 hover:border-gray-200 hover:shadow-subtle transition-all duration-200">
+          <p className="text-xs text-gray-500 uppercase tracking-wide">其他</p>
+          <p className="text-xl font-semibold text-purple-600 mt-1.5 tracking-tight">
             {totalOther.toLocaleString('zh-CN', { minimumFractionDigits: 2 })} 元
-          </div>
+          </p>
         </div>
-        <div className="bg-indigo-50 rounded-xl shadow-sm p-4">
-          <div className="text-sm text-indigo-600">应发合计</div>
-          <div className="text-xl font-bold text-indigo-700 mt-1">
+        <div className="bg-indigo-50 rounded-xl p-5 border border-indigo-100">
+          <p className="text-xs text-indigo-600 uppercase tracking-wide">应发合计</p>
+          <p className="text-xl font-semibold text-indigo-700 mt-1.5 tracking-tight">
             {total.toLocaleString('zh-CN', { minimumFractionDigits: 2 })} 元
-          </div>
+          </p>
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
+      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-100">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">员工</th>
@@ -241,7 +244,7 @@ export function SalaryClient() {
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">操作</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody className="divide-y divide-gray-100">
             {records.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
@@ -250,7 +253,7 @@ export function SalaryClient() {
               </tr>
             ) : (
               records.map((record) => (
-                <tr key={record.id}>
+                <tr key={record.id} className="hover:bg-gray-50 transition-colors duration-150">
                   <td className="px-4 py-3">
                     <div className="text-sm font-medium text-gray-900">
                       {record.employee?.name || record.employee_id}

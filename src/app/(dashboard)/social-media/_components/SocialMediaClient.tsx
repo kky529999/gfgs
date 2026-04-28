@@ -5,7 +5,6 @@ import {
   getSocialMediaPostsAction,
   getSocialMediaEmployeesAction,
   createSocialMediaPostAction,
-  updateSocialMediaPostAction,
   approveSocialMediaPostAction,
   deleteSocialMediaPostAction,
   type SocialMediaPost,
@@ -51,6 +50,9 @@ export function SocialMediaClient() {
 
   useEffect(() => {
     loadEmployees();
+  }, []);
+
+  useEffect(() => {
     loadPosts();
   }, [yearMonth]);
 
@@ -180,37 +182,37 @@ export function SocialMediaClient() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="bg-white rounded-xl shadow-sm p-4">
-          <div className="text-sm text-gray-500">发布总数</div>
-          <div className="text-xl font-bold text-gray-900 mt-1">{totalPosts}</div>
+        <div className="bg-white rounded-xl p-5 border border-gray-100 hover:border-gray-200 hover:shadow-subtle transition-all duration-200">
+          <p className="text-xs text-gray-500 uppercase tracking-wide">发布总数</p>
+          <p className="text-xl font-semibold text-gray-900 mt-1.5 tracking-tight">{totalPosts}</p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4">
-          <div className="text-sm text-gray-500">普通视频</div>
-          <div className="text-xl font-bold text-blue-600 mt-1">
-            {normalPosts} <span className="text-sm font-normal">({REWARD_NORMAL}元/条)</span>
-          </div>
+        <div className="bg-white rounded-xl p-5 border border-gray-100 hover:border-gray-200 hover:shadow-subtle transition-all duration-200">
+          <p className="text-xs text-gray-500 uppercase tracking-wide">普通视频</p>
+          <p className="text-xl font-semibold text-blue-600 mt-1.5 tracking-tight">
+            {normalPosts} <span className="text-sm font-normal text-gray-400">({REWARD_NORMAL}元/条)</span>
+          </p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4">
-          <div className="text-sm text-gray-500">真人出镜</div>
-          <div className="text-xl font-bold text-green-600 mt-1">
-            {realPersonPosts} <span className="text-sm font-normal">({REWARD_REAL_PERSON}元/条)</span>
-          </div>
+        <div className="bg-white rounded-xl p-5 border border-gray-100 hover:border-gray-200 hover:shadow-subtle transition-all duration-200">
+          <p className="text-xs text-gray-500 uppercase tracking-wide">真人出镜</p>
+          <p className="text-xl font-semibold text-green-600 mt-1.5 tracking-tight">
+            {realPersonPosts} <span className="text-sm font-normal text-gray-400">({REWARD_REAL_PERSON}元/条)</span>
+          </p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4">
-          <div className="text-sm text-gray-500">待审核</div>
-          <div className="text-xl font-bold text-orange-600 mt-1">{pendingCount}</div>
+        <div className="bg-white rounded-xl p-5 border border-gray-100 hover:border-gray-200 hover:shadow-subtle transition-all duration-200">
+          <p className="text-xs text-gray-500 uppercase tracking-wide">待审核</p>
+          <p className="text-xl font-semibold text-orange-600 mt-1.5 tracking-tight">{pendingCount}</p>
         </div>
-        <div className="bg-indigo-50 rounded-xl shadow-sm p-4">
-          <div className="text-sm text-indigo-600">奖励合计</div>
-          <div className="text-xl font-bold text-indigo-700 mt-1">
+        <div className="bg-indigo-50 rounded-xl p-5 border border-indigo-100">
+          <p className="text-xs text-indigo-600 uppercase tracking-wide">奖励合计</p>
+          <p className="text-xl font-semibold text-indigo-700 mt-1.5 tracking-tight">
             {totalReward.toLocaleString('zh-CN', { minimumFractionDigits: 2 })} 元
-          </div>
+          </p>
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
+      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-100">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">员工</th>
@@ -224,7 +226,7 @@ export function SocialMediaClient() {
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">操作</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody className="divide-y divide-gray-100">
             {posts.length === 0 ? (
               <tr>
                 <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
@@ -233,7 +235,7 @@ export function SocialMediaClient() {
               </tr>
             ) : (
               posts.map((post) => (
-                <tr key={post.id}>
+                <tr key={post.id} className="hover:bg-gray-50 transition-colors duration-150">
                   <td className="px-4 py-3">
                     <div className="text-sm font-medium text-gray-900">
                       {post.employee?.name || '-'}
@@ -264,7 +266,7 @@ export function SocialMediaClient() {
                     {post.views > 0 ? post.views.toLocaleString() : '-'}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <span className="text-sm font-bold text-indigo-600">
+                    <span className="text-sm font-semibold text-indigo-600">
                       {(post.reward || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })} 元
                     </span>
                   </td>

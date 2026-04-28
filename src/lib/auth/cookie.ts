@@ -1,15 +1,16 @@
 import { cookies } from 'next/headers';
+import { verifyToken } from './jwt';
 import type { TokenPayload } from './jwt';
 
 const COOKIE_NAME = 'gfgs_auth';
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 days in seconds
 
-export async function setAuthCookie(payload: TokenPayload): Promise<void> {
+export async function setAuthCookie(token: string): Promise<void> {
   const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NAME, JSON.stringify(payload), {
+  cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'strict',
     maxAge: COOKIE_MAX_AGE,
     path: '/',
   });
@@ -19,11 +20,7 @@ export async function getAuthCookie(): Promise<TokenPayload | null> {
   const cookieStore = await cookies();
   const cookie = cookieStore.get(COOKIE_NAME);
   if (!cookie?.value) return null;
-  try {
-    return JSON.parse(cookie.value) as TokenPayload;
-  } catch {
-    return null;
-  }
+  return verifyToken(cookie.value);
 }
 
 export async function clearAuthCookie(): Promise<void> {

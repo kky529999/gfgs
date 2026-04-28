@@ -9,6 +9,7 @@ import {
   resetEmployeePasswordAction,
   getDepartmentsAction,
 } from '@/lib/employees/actions';
+import { DEFAULT_PASSWORD } from '@/lib/constants';
 import type { Employee, Department } from '@/types';
 
 interface EditEmployeePageProps {
@@ -139,7 +140,7 @@ export default function EditEmployeePage({ params }: EditEmployeePageProps) {
 
   const handleResetPassword = async () => {
     if (!employeeId) return;
-    if (!confirm('确定要将该员工密码重置为默认密码（123456）吗？')) {
+    if (!confirm(`确定要将该员工密码重置为默认密码（${DEFAULT_PASSWORD}）吗？`)) {
       return;
     }
 
@@ -148,7 +149,7 @@ export default function EditEmployeePage({ params }: EditEmployeePageProps) {
 
     const result = await resetEmployeePasswordAction(employeeId);
     if (result.success) {
-      setSuccess('密码已重置为 123456');
+      setSuccess(`密码已重置为 ${DEFAULT_PASSWORD}`);
     } else {
       setError(result.error || '重置密码失败');
     }

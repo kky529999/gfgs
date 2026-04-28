@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { WarehouseMaterial, StockMovement, StockMovementType } from '@/types';
 import {
   getWarehouseMaterialsAction,
@@ -351,13 +351,13 @@ export function WarehouseClient({ initialMaterials }: WarehouseClientProps) {
         )}
 
         {/* Movement History */}
-        <div className="bg-white rounded-xl shadow-sm">
+        <div className="bg-white rounded-xl border border-gray-100">
           <div className="p-4 border-b border-gray-200">
             <h3 className="font-medium text-gray-900">出入库记录</h3>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+            <table className="w-full divide-y divide-gray-100">
+              <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">日期</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">类型</th>
@@ -366,7 +366,7 @@ export function WarehouseClient({ initialMaterials }: WarehouseClientProps) {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">备注</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-100">
                 {movements.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-4 py-8 text-center text-gray-500">暂无出入库记录</td>
@@ -404,7 +404,7 @@ export function WarehouseClient({ initialMaterials }: WarehouseClientProps) {
 
   // Material list view
   return (
-    <div className="bg-white rounded-xl shadow-sm">
+    <div className="bg-white rounded-xl border border-gray-100">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200">
@@ -417,7 +417,7 @@ export function WarehouseClient({ initialMaterials }: WarehouseClientProps) {
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">操作</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody className="divide-y divide-gray-100">
             {materials.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-gray-500">暂无库存数据</td>

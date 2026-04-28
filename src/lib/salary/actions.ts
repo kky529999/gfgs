@@ -222,18 +222,15 @@ export async function deleteSalaryRecordAction(
   }
 }
 
-// Get employees for dropdown
+// Get employees for dropdown (available to all authenticated users)
 export async function getSalaryEmployeesAction(): Promise<{
   success: boolean;
   data?: { id: string; name: string; title: string }[];
   error?: string;
 }> {
-  const permission = await checkAdminPermission();
-  if (!permission.allowed) {
-    return { success: false, error: permission.error };
-  }
-
   try {
+    await refreshSessionAction();
+
     const { data, error } = await supabase
       .from('employees')
       .select('id, name, title')

@@ -253,18 +253,15 @@ export async function deleteSocialMediaPostAction(
   }
 }
 
-// Get employees for dropdown (all active employees)
+// Get employees for dropdown (available to all authenticated users)
 export async function getSocialMediaEmployeesAction(): Promise<{
   success: boolean;
   data?: { id: string; name: string; title: string }[];
   error?: string;
 }> {
-  const permission = await checkAdminPermission();
-  if (!permission.allowed) {
-    return { success: false, error: permission.error };
-  }
-
   try {
+    await refreshSessionAction();
+
     const { data, error } = await supabase
       .from('employees')
       .select('id, name, title')

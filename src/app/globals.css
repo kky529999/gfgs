@@ -1,11 +1,136 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* Primary color */
+  --color-primary: #007AFF;
+  --color-primary-hover: #0071E3;
+  --color-primary-light: #E8F4FF;
+
+  /* Gray scale - Apple style */
+  --color-gray-900: #1D1D1F;
+  --color-gray-700: #424245;
+  --color-gray-500: #86868B;
+  --color-gray-300: #D2D2D7;
+  --color-gray-100: #F5F5F7;
+
+  /* Background colors */
+  --color-background: #FFFFFF;
+  --color-background-secondary: #F5F5F7;
+  --color-background-tertiary: #FAFAFA;
+
+  /* Foreground colors */
+  --color-foreground: #1D1D1F;
+  --color-foreground-secondary: #86868B;
+
+  /* Status colors */
+  --color-success: #34C759;
+  --color-warning: #FF9500;
+  --color-error: #FF3B30;
+
+  /* Border radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Box shadows */
+  --shadow-subtle: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05);
+  --shadow-elevated: 0 4px 20px rgba(0,0,0,0.08);
+
+  /* Transition durations */
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
+:root {
+  /* 主色调 - 品牌蓝 */
+  --color-primary: #007AFF;
+  --color-primary-hover: #0071E3;
+  --color-primary-light: #E8F4FF;
+
+  /* 中性色 - Apple 风格灰 */
+  --color-gray-900: #1D1D1F;
+  --color-gray-700: #424245;
+  --color-gray-500: #86868B;
+  --color-gray-300: #D2D2D7;
+  --color-gray-100: #F5F5F7;
+
+  /* 背景色 */
+  --color-bg: #FFFFFF;
+  --color-bg-secondary: #F5F5F7;
+  --color-bg-tertiary: #FAFAFA;
+
+  /* 文字色 */
+  --color-text-primary: #1D1D1F;
+  --color-text-secondary: #86868B;
+
+  /* 状态色 */
+  --color-success: #34C759;
+  --color-warning: #FF9500;
+  --color-error: #FF3B30;
+
+  /* 间距系统 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-8: 48px;
+
+  /* 圆角系统 */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* 过渡时间 */
+  --transition-fast: 150ms ease-out;
+  --transition-normal: 250ms ease-out;
+  --transition-slow: 400ms ease-out;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* 页面淡入动画 */
+  .animate-fade-in {
+    animation: fadeIn 400ms ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* 卡片悬停效果 */
+  .card-hover {
+    transition: all var(--transition-normal);
+    border: 1px solid transparent;
+  }
+
+  .card-hover:hover {
+    border-color: var(--color-gray-300);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
+  }
+
+  /* 按钮点击缩放 */
+  .btn-press:active {
+    transform: scale(0.98);
+  }
 }

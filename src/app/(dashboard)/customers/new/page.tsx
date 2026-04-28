@@ -15,7 +15,8 @@ interface Employee {
   id: string;
   name: string;
   phone: string;
-  role: string;
+  department_code: string | null;
+  title: string;
 }
 
 interface Dealer {
@@ -354,7 +355,7 @@ export default function NewCustomerPage() {
                     >
                       <option value="">请选择业务员</option>
                       {employees
-                        .filter((e) => e.role === 'business')
+                        .filter((e) => e.department_code === 'business')
                         .map((employee) => (
                           <option key={employee.id} value={employee.id}>
                             {employee.name} ({employee.phone})
@@ -375,7 +376,7 @@ export default function NewCustomerPage() {
                     >
                       <option value="">请选择技术员</option>
                       {employees
-                        .filter((e) => e.role === 'tech')
+                        .filter((e) => e.department_code === 'tech')
                         .map((employee) => (
                           <option key={employee.id} value={employee.id}>
                             {employee.name} ({employee.phone})

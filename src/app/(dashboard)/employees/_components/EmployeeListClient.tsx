@@ -12,9 +12,10 @@ interface EmployeeWithDepartment extends Omit<Employee, 'department'> {
 interface EmployeeListClientProps {
   employees: EmployeeWithDepartment[];
   departments: Department[];
+  defaultPassword: string;
 }
 
-export function EmployeeListClient({ employees, departments }: EmployeeListClientProps) {
+export function EmployeeListClient({ employees, departments, defaultPassword }: EmployeeListClientProps) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [deptFilter, setDeptFilter] = useState<string>('all');
@@ -54,7 +55,7 @@ export function EmployeeListClient({ employees, departments }: EmployeeListClien
   };
 
   const handleResetPassword = async (employeeId: string) => {
-    if (!confirm('确定要将该员工密码重置为默认密码（123456）吗？')) {
+    if (!confirm(`确定要将该员工密码重置为默认密码（${defaultPassword}）吗？`)) {
       return;
     }
 
@@ -63,7 +64,7 @@ export function EmployeeListClient({ employees, departments }: EmployeeListClien
 
     const result = await resetEmployeePasswordAction(employeeId);
     if (result.success) {
-      setMessage({ type: 'success', text: '密码已重置为 123456' });
+      setMessage({ type: 'success', text: `密码已重置为 ${defaultPassword}` });
     } else {
       setMessage({ type: 'error', text: result.error || '操作失败' });
     }
@@ -72,7 +73,7 @@ export function EmployeeListClient({ employees, departments }: EmployeeListClien
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm">
+    <div className="bg-white rounded-xl border border-gray-100 hover:border-gray-200 transition-all duration-200 hover:shadow-subtle">
       {/* Filters */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex flex-wrap gap-4">
@@ -83,7 +84,7 @@ export function EmployeeListClient({ employees, departments }: EmployeeListClien
               placeholder="搜索姓名或手机号..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-150"
             />
           </div>
 
@@ -91,7 +92,7 @@ export function EmployeeListClient({ employees, departments }: EmployeeListClien
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-150"
           >
             <option value="all">全部状态</option>
             <option value="active">在职</option>
@@ -102,7 +103,7 @@ export function EmployeeListClient({ employees, departments }: EmployeeListClien
           <select
             value={deptFilter}
             onChange={(e) => setDeptFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-150"
           >
             <option value="all">全部部门</option>
             {departments.map((dept) => (
@@ -161,8 +162,8 @@ export function EmployeeListClient({ employees, departments }: EmployeeListClien
                 <tr key={employee.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                        <span className="text-indigo-600 font-medium">
+                      <div className="w-10 h-10 rounded-full bg-primary-light flex items-center justify-center">
+                        <span className="text-primary font-medium">
                           {employee.name.charAt(0)}
                         </span>
                       </div>
@@ -205,7 +206,7 @@ export function EmployeeListClient({ employees, departments }: EmployeeListClien
                     <div className="flex items-center justify-end gap-2">
                       <Link
                         href={`/employees/${employee.id}`}
-                        className="inline-flex items-center px-3 py-1.5 text-sm text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-md transition-colors"
+                        className="inline-flex items-center px-3 py-1.5 text-sm text-primary hover:text-primary-hover hover:bg-gray-100 rounded-md transition-colors duration-150"
                       >
                         编辑
                       </Link>

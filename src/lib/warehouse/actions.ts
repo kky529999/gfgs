@@ -376,12 +376,9 @@ export async function getActiveCustomersAction(): Promise<{
   data?: { id: string; name: string; brand: string | null }[];
   error?: string;
 }> {
-  const permission = await checkAdminPermission();
-  if (!permission.allowed) {
-    return { success: false, error: permission.error };
-  }
-
   try {
+    await refreshSessionAction();
+
     const { data, error } = await supabase
       .from('customers')
       .select('id, name, brand')

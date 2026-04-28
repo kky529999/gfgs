@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import {
   getFundStatsAction,
   getMyFundBalanceAction,
@@ -16,11 +15,18 @@ import { FUND_TRANSACTION_LABELS } from '@/types/growth-fund';
 import type { FundTransactionType } from '@/types/growth-fund';
 import type { FundTransaction, FundTransactionWithRelations } from '@/types/growth-fund';
 
+interface FundBalanceWithEmployee {
+  employee_id: string;
+  balance: number;
+  last_transaction_at: string | null;
+  employee: { name: string; phone: string };
+}
+
 export default function GrowthFundPage() {
   const [stats, setStats] = useState({ total_balance: 0, total_deposits: 0, total_withdrawals: 0, employee_count: 0 });
   const [myBalance, setMyBalance] = useState<{ balance: number; last_transaction_at: string | null } | null>(null);
   const [myTransactions, setMyTransactions] = useState<FundTransaction[]>([]);
-  const [allBalances, setAllBalances] = useState<(any & { employee: { name: string; phone: string } })[]>([]);
+  const [allBalances, setAllBalances] = useState<FundBalanceWithEmployee[]>([]);
   const [allTransactions, setAllTransactions] = useState<FundTransactionWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [auth, setAuth] = useState<{ user_id: string; role: string } | null>(null);
@@ -37,21 +43,6 @@ export default function GrowthFundPage() {
   const [error, setError] = useState('');
 
   const isAdminOrGM = auth?.role === 'admin' || auth?.role === 'gm';
-
-  useEffect(() => {
-    getAuthInfoAction().then((result) => {
-      if (result.success && result.data) {
-        setAuth(result.data);
-        if (result.data.role === 'admin' || result.data.role === 'gm') {
-          setActiveTab('all');
-        }
-      }
-    });
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [auth]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -94,6 +85,24 @@ export default function GrowthFundPage() {
 
     setLoading(false);
   };
+
+  useEffect(() => {
+    getAuthInfoAction().then((result) => {
+      if (result.success && result.data) {
+        setAuth(result.data);
+        if (result.data.role === 'admin' || result.data.role === 'gm') {
+          setActiveTab('all');
+        }
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (auth) {
+      fetchData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth]);
 
   const handleCreateTransaction = async () => {
     if (!newTransaction.employee_id || !newTransaction.amount) {
@@ -141,7 +150,7 @@ export default function GrowthFundPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">成长基金</h1>
+          <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">成长基金</h1>
           <p className="text-gray-500 mt-1">
             {isAdminOrGM ? '管理所有员工的成长基金' : '我的成长基金账户'}
           </p>
@@ -158,55 +167,55 @@ export default function GrowthFundPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl p-4 shadow-sm">
-          <div className="text-sm text-gray-500">基金总余额</div>
-          <div className="text-2xl font-bold text-indigo-600 mt-1">
+        <div className="bg-white rounded-xl p-5 border border-gray-100 hover:border-gray-200 hover:shadow-subtle transition-all duration-200">
+          <p className="text-xs text-gray-500 uppercase tracking-wide">基金总余额</p>
+          <p className="text-2xl font-semibold text-indigo-600 mt-1.5 tracking-tight">
             ¥{stats.total_balance.toLocaleString()}
-          </div>
+          </p>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm">
-          <div className="text-sm text-gray-500">总存入</div>
-          <div className="text-2xl font-bold text-green-600 mt-1">
+        <div className="bg-white rounded-xl p-5 border border-gray-100 hover:border-gray-200 hover:shadow-subtle transition-all duration-200">
+          <p className="text-xs text-gray-500 uppercase tracking-wide">总存入</p>
+          <p className="text-2xl font-semibold text-green-600 mt-1.5 tracking-tight">
             ¥{stats.total_deposits.toLocaleString()}
-          </div>
+          </p>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm">
-          <div className="text-sm text-gray-500">总支取</div>
-          <div className="text-2xl font-bold text-red-600 mt-1">
+        <div className="bg-white rounded-xl p-5 border border-gray-100 hover:border-gray-200 hover:shadow-subtle transition-all duration-200">
+          <p className="text-xs text-gray-500 uppercase tracking-wide">总支取</p>
+          <p className="text-2xl font-semibold text-red-600 mt-1.5 tracking-tight">
             ¥{stats.total_withdrawals.toLocaleString()}
-          </div>
+          </p>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm">
-          <div className="text-sm text-gray-500">参与人数</div>
-          <div className="text-2xl font-bold text-gray-900 mt-1">
+        <div className="bg-white rounded-xl p-5 border border-gray-100 hover:border-gray-200 hover:shadow-subtle transition-all duration-200">
+          <p className="text-xs text-gray-500 uppercase tracking-wide">参与人数</p>
+          <p className="text-2xl font-semibold text-gray-900 mt-1.5 tracking-tight">
             {stats.employee_count}
-          </div>
+          </p>
         </div>
       </div>
 
       {/* My Balance Card */}
       {!isAdminOrGM && myBalance && (
         <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-6 text-white">
-          <div className="text-sm opacity-80">我的余额</div>
-          <div className="text-4xl font-bold mt-2">
+          <p className="text-xs text-white/80 uppercase tracking-wide">我的余额</p>
+          <p className="text-4xl font-semibold mt-2 tracking-tight">
             ¥{myBalance.balance.toLocaleString()}
-          </div>
+          </p>
           {myBalance.last_transaction_at && (
-            <div className="text-sm opacity-70 mt-2">
+            <p className="text-sm text-white/70 mt-2">
               最近变动: {new Date(myBalance.last_transaction_at).toLocaleDateString('zh-CN')}
-            </div>
+            </p>
           )}
         </div>
       )}
 
       {/* Tabs */}
       {isAdminOrGM && (
-        <div className="bg-white rounded-xl shadow-sm">
-          <div className="border-b">
+        <div className="bg-white rounded-xl border border-gray-100">
+          <div className="border-b border-gray-100">
             <nav className="flex">
               <button
                 onClick={() => setActiveTab('all')}
-                className={`px-6 py-3 text-sm font-medium border-b-2 ${
+                className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors duration-150 ${
                   activeTab === 'all'
                     ? 'border-indigo-600 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -216,7 +225,7 @@ export default function GrowthFundPage() {
               </button>
               <button
                 onClick={() => setActiveTab('balances')}
-                className={`px-6 py-3 text-sm font-medium border-b-2 ${
+                className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors duration-150 ${
                   activeTab === 'balances'
                     ? 'border-indigo-600 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -230,7 +239,7 @@ export default function GrowthFundPage() {
       )}
 
       {/* Content */}
-      <div className="bg-white rounded-xl shadow-sm">
+      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
         {activeTab === 'my' && !isAdminOrGM && (
           <>
             {myTransactions.length === 0 ? (
@@ -270,19 +279,19 @@ export default function GrowthFundPage() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50 border-b">
+                  <thead className="bg-gray-50 border-b border-gray-100">
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">员工</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">类型</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">金额</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">备注</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">时间</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">余额</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">员工</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">类型</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">金额</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">备注</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">时间</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">余额</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y">
+                  <tbody className="divide-y divide-gray-100">
                     {allTransactions.map((tx) => (
-                      <tr key={tx.id} className="hover:bg-gray-50">
+                      <tr key={tx.id} className="hover:bg-gray-50 transition-colors duration-150">
                         <td className="px-4 py-3">
                           <div className="font-medium text-gray-900">
                             {tx.employee?.name || '未知'}
@@ -324,17 +333,17 @@ export default function GrowthFundPage() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50 border-b">
+                  <thead className="bg-gray-50 border-b border-gray-100">
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">员工</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">电话</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">当前余额</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">最近变动</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">员工</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">电话</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">当前余额</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">最近变动</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y">
+                  <tbody className="divide-y divide-gray-100">
                     {allBalances.map((balance) => (
-                      <tr key={balance.employee_id} className="hover:bg-gray-50">
+                      <tr key={balance.employee_id} className="hover:bg-gray-50 transition-colors duration-150">
                         <td className="px-4 py-3 font-medium text-gray-900">
                           {balance.employee?.name || '未知'}
                         </td>

@@ -36,10 +36,6 @@ export function InvoicesClient() {
     note: '',
   });
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
   const loadData = async () => {
     setLoading(true);
     const [invoiceRes, customerRes] = await Promise.all([
@@ -51,6 +47,10 @@ export function InvoicesClient() {
     if (customerRes.success) setCustomers(customerRes.data || []);
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleFilter = () => {
     loadData();
@@ -118,11 +118,6 @@ export function InvoicesClient() {
     {} as Record<string, number>
   );
 
-  const getCustomerName = (customerId: string) => {
-    const customer = customers.find((c) => c.id === customerId);
-    return customer?.name || customerId;
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -135,25 +130,25 @@ export function InvoicesClient() {
     <div className="space-y-4">
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl shadow-sm p-4">
-          <div className="text-sm text-gray-500">发票总数</div>
-          <div className="text-2xl font-bold text-gray-900 mt-1">{invoices.length}</div>
+        <div className="bg-white rounded-xl p-5 border border-gray-100 hover:border-gray-200 hover:shadow-subtle transition-all duration-200">
+          <p className="text-xs text-gray-500 uppercase tracking-wide">发票总数</p>
+          <p className="text-2xl font-semibold text-gray-900 mt-1.5 tracking-tight">{invoices.length}</p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4">
-          <div className="text-sm text-gray-500">发票总金额</div>
-          <div className="text-2xl font-bold text-indigo-600 mt-1">
+        <div className="bg-white rounded-xl p-5 border border-gray-100 hover:border-gray-200 hover:shadow-subtle transition-all duration-200">
+          <p className="text-xs text-gray-500 uppercase tracking-wide">发票总金额</p>
+          <p className="text-2xl font-semibold text-indigo-600 mt-1.5 tracking-tight">
             {totalAmount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })} 元
-          </div>
+          </p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4">
-          <div className="text-sm text-gray-500">涉及品牌</div>
-          <div className="text-2xl font-bold text-gray-900 mt-1">{brands.length}</div>
+        <div className="bg-white rounded-xl p-5 border border-gray-100 hover:border-gray-200 hover:shadow-subtle transition-all duration-200">
+          <p className="text-xs text-gray-500 uppercase tracking-wide">涉及品牌</p>
+          <p className="text-2xl font-semibold text-gray-900 mt-1.5 tracking-tight">{brands.length}</p>
         </div>
       </div>
 
       {/* Brand Stats */}
       {Object.keys(brandStats).length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-4">
+        <div className="bg-white rounded-xl p-5 border border-gray-100">
           <h3 className="text-sm font-medium text-gray-700 mb-3">按品牌统计</h3>
           <div className="flex flex-wrap gap-4">
             {Object.entries(brandStats).map(([brand, amount]) => (
@@ -213,20 +208,20 @@ export function InvoicesClient() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
+      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-100">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">客户</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">品牌</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">发票号</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">金额</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">开票日期</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">备注</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">操作</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">客户</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">品牌</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">发票号</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">金额</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">开票日期</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">备注</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody className="divide-y divide-gray-100">
             {invoices.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
@@ -235,7 +230,7 @@ export function InvoicesClient() {
               </tr>
             ) : (
               invoices.map((invoice) => (
-                <tr key={invoice.id}>
+                <tr key={invoice.id} className="hover:bg-gray-50 transition-colors duration-150">
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">
                     {invoice.customer?.name || invoice.customer_id}
                   </td>

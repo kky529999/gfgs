@@ -8,6 +8,7 @@ import {
   getDepartmentsAction,
   type CreateEmployeeInput,
 } from '@/lib/employees/actions';
+import { DEFAULT_PASSWORD } from '@/lib/constants';
 import type { Department } from '@/types';
 
 export default function NewEmployeePage() {
@@ -192,7 +193,7 @@ export default function NewEmployeePage() {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h3 className="font-medium text-blue-800 mb-2">创建说明</h3>
             <ul className="text-sm text-blue-700 space-y-1">
-              <li>新员工默认密码为 <span className="font-mono bg-blue-100 px-1 rounded">123456</span></li>
+              <li>新员工默认密码为 <span className="font-mono bg-blue-100 px-1 rounded">{DEFAULT_PASSWORD}</span></li>
               <li>员工首次登录时需要修改密码</li>
               <li>手机号将作为登录账号使用</li>
             </ul>

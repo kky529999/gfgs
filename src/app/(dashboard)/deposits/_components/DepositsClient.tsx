@@ -13,7 +13,7 @@ import {
   type CreateBrandDepositInput,
   type CreateDealerDepositInput,
 } from '@/lib/deposits/actions';
-import type { BrandDeposit, DealerDeposit, Dealer } from '@/types';
+import type { BrandDeposit, DealerDeposit } from '@/types';
 
 type Tab = 'brand' | 'dealer';
 
@@ -60,10 +60,6 @@ export function DepositsClient() {
 
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
   const loadData = async () => {
     setLoading(true);
     const [brandRes, dealerRes, dealersRes] = await Promise.all([
@@ -77,6 +73,10 @@ export function DepositsClient() {
     if (dealersRes.success) setDealers(dealersRes.data || []);
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleCreateBrandDeposit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,11 +190,6 @@ export function DepositsClient() {
     { paid: 0, refunded: 0 }
   );
 
-  const getDealerName = (dealerId: string) => {
-    const dealer = dealers.find((d) => d.id === dealerId);
-    return dealer?.name || dealerId;
-  };
-
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
       paid: 'bg-green-100 text-green-800',
@@ -229,40 +224,40 @@ export function DepositsClient() {
     <div className="space-y-4">
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl shadow-sm p-4">
-          <div className="text-sm text-gray-500">我方交品牌押金</div>
-          <div className="text-2xl font-bold text-gray-900 mt-1">
+        <div className="bg-white rounded-xl p-5 border border-gray-100 hover:border-gray-200 hover:shadow-subtle transition-all duration-200">
+          <p className="text-xs text-gray-500 uppercase tracking-wide">我方交品牌押金</p>
+          <p className="text-2xl font-semibold text-gray-900 mt-1.5 tracking-tight">
             {totalBrandDeposit.toLocaleString('zh-CN', { minimumFractionDigits: 2 })} 元
-          </div>
+          </p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4">
-          <div className="text-sm text-gray-500">品牌押金已退还</div>
-          <div className="text-2xl font-bold text-green-600 mt-1">
+        <div className="bg-white rounded-xl p-5 border border-gray-100 hover:border-gray-200 hover:shadow-subtle transition-all duration-200">
+          <p className="text-xs text-gray-500 uppercase tracking-wide">品牌押金已退还</p>
+          <p className="text-2xl font-semibold text-green-600 mt-1.5 tracking-tight">
             {totalBrandRefunded.toLocaleString('zh-CN', { minimumFractionDigits: 2 })} 元
-          </div>
+          </p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4">
-          <div className="text-sm text-gray-500">二级商缴纳押金</div>
-          <div className="text-2xl font-bold text-indigo-600 mt-1">
+        <div className="bg-white rounded-xl p-5 border border-gray-100 hover:border-gray-200 hover:shadow-subtle transition-all duration-200">
+          <p className="text-xs text-gray-500 uppercase tracking-wide">二级商缴纳押金</p>
+          <p className="text-2xl font-semibold text-indigo-600 mt-1.5 tracking-tight">
             {dealerStats.paid.toLocaleString('zh-CN', { minimumFractionDigits: 2 })} 元
-          </div>
+          </p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4">
-          <div className="text-sm text-gray-500">已退还二级商</div>
-          <div className="text-2xl font-bold text-orange-600 mt-1">
+        <div className="bg-white rounded-xl p-5 border border-gray-100 hover:border-gray-200 hover:shadow-subtle transition-all duration-200">
+          <p className="text-xs text-gray-500 uppercase tracking-wide">已退还二级商</p>
+          <p className="text-2xl font-semibold text-orange-600 mt-1.5 tracking-tight">
             {dealerStats.refunded.toLocaleString('zh-CN', { minimumFractionDigits: 2 })} 元
-          </div>
+          </p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-gray-100">
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab('brand')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-150 ${
               activeTab === 'brand'
-                ? 'border-indigo-500 text-indigo-600'
+                ? 'border-indigo-600 text-indigo-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
@@ -270,9 +265,9 @@ export function DepositsClient() {
           </button>
           <button
             onClick={() => setActiveTab('dealer')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-150 ${
               activeTab === 'dealer'
-                ? 'border-indigo-500 text-indigo-600'
+                ? 'border-indigo-600 text-indigo-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
@@ -299,21 +294,21 @@ export function DepositsClient() {
             </button>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
+          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-100">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">品牌</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">押金金额</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">已退还</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">剩余</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">缴纳日期</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">备注</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">操作</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">品牌</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">押金金额</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">已退还</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">剩余</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">缴纳日期</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">备注</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-100">
                 {brandDeposits.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
@@ -324,7 +319,7 @@ export function DepositsClient() {
                   brandDeposits.map((deposit) => {
                     const remaining = deposit.amount - (deposit.refunded || 0);
                     return (
-                      <tr key={deposit.id}>
+                      <tr key={deposit.id} className="hover:bg-gray-50 transition-colors duration-150">
                         <td className="px-4 py-3 text-sm font-medium text-gray-900">{deposit.brand}</td>
                         <td className="px-4 py-3 text-sm text-right text-gray-900">
                           {deposit.amount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })} 元
@@ -390,20 +385,20 @@ export function DepositsClient() {
             </button>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
+          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-100">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">二级商</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">类型</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">金额</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">日期</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作人</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">备注</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">操作</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">二级商</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">类型</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">金额</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日期</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作人</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">备注</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-100">
                 {dealerDeposits.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
@@ -412,7 +407,7 @@ export function DepositsClient() {
                   </tr>
                 ) : (
                   dealerDeposits.map((deposit) => (
-                    <tr key={deposit.id}>
+                    <tr key={deposit.id} className="hover:bg-gray-50 transition-colors duration-150">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">
                         {deposit.dealer?.name || deposit.dealer_id}
                       </td>

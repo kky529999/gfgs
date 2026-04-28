@@ -183,18 +183,15 @@ export async function deleteInvoiceAction(
   }
 }
 
-// Get customers for dropdown (only those that have closed/shipped)
+// Get customers for dropdown (available to all authenticated users)
 export async function getInvoiceCustomersAction(): Promise<{
   success: boolean;
   data?: { id: string; name: string; brand: string | null }[];
   error?: string;
 }> {
-  const permission = await checkAdminPermission();
-  if (!permission.allowed) {
-    return { success: false, error: permission.error };
-  }
-
   try {
+    await refreshSessionAction();
+
     const { data, error } = await supabase
       .from('customers')
       .select('id, name, brand')

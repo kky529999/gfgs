@@ -2,10 +2,16 @@
 
 import bcrypt from 'bcryptjs';
 import { revalidatePath } from 'next/cache';
-import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getAuthCookie } from '@/lib/auth/cookie';
 import { refreshSessionAction } from '@/lib/auth/actions';
 import type { Employee, Department } from '@/types';
+import { DEFAULT_PASSWORD } from '@/lib/constants';
+
+// Get default password for UI display
+export function getDefaultPassword(): string {
+  return DEFAULT_PASSWORD;
+}
 
 // Helper to check admin/gm permission
 async function checkAdminPermission(): Promise<{ allowed: boolean; error?: string }> {
@@ -153,8 +159,8 @@ export async function createEmployeeAction(
       return { success: false, error: '该手机号已存在' };
     }
 
-    // Hash default password (123456)
-    const passwordHash = await bcrypt.hash('123456', 10);
+    // Hash default password
+    const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
 
     const { data, error } = await supabaseAdmin
       .from('employees')
@@ -262,7 +268,7 @@ export async function resetEmployeePasswordAction(
   }
 
   try {
-    const passwordHash = await bcrypt.hash('123456', 10);
+    const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
 
     const { error } = await supabaseAdmin
       .from('employees')
@@ -328,8 +334,62 @@ export async function toggleEmployeeStatusAction(
     }
 
     revalidatePath('/employees');
+    revalidatePath('/employees/permissions');
 
     return { success: true, data: data as Employee };
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    return { success: false, error: '系统错误' };
+  }
+}
+
+// Update employee role by changing department
+export async function updateEmployeeRoleAction(
+  employeeId: string,
+  departmentId: string | null
+): Promise<{
+  success: boolean;
+  data?: Employee;
+  error?: string;
+}> {
+  const permission = await checkAdminPermission();
+  if (!permission.allowed) {
+    return { success: false, error: permission.error };
+  }
+
+  try {
+    // Validate department exists if provided
+    if (departmentId) {
+      const { data: dept, error: deptError } = await supabaseAdmin
+        .from('departments')
+        .select('id')
+        .eq('id', departmentId)
+        .single();
+
+      if (deptError || !dept) {
+        return { success: false, error: '部门不存在' };
+      }
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('employees')
+      .update({
+        department_id: departmentId || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', employeeId)
+      .select('*, department:departments(*)')
+      .single();
+
+    if (error) {
+      console.error('Error updating role:', error);
+      return { success: false, error: '更新权限失败' };
+    }
+
+    revalidatePath('/employees');
+    revalidatePath('/employees/permissions');
+
+    return { success: true, data: data as Employee & { department?: Department } };
   } catch (err) {
     console.error('Unexpected error:', err);
     return { success: false, error: '系统错误' };

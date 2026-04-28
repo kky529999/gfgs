@@ -194,28 +194,28 @@ export default function Sidebar({ userRole, userName }: SidebarProps) {
       {/* Sidebar */}
       <aside
         className={`
-          fixed top-0 left-0 h-full w-64 bg-slate-900 text-white z-40
-          transform transition-transform duration-200 ease-in-out
+          fixed top-0 left-0 h-full w-64 bg-gray-900 text-white z-40
+          transform transition-transform duration-300 ease-out
           lg:translate-x-0
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
         {/* Logo */}
-        <div className="h-16 flex items-center px-6 border-b border-slate-700">
+        <div className="h-14 flex items-center px-5 border-b border-gray-700/50">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
               </svg>
             </div>
-            <span className="font-bold text-sm">智光新程</span>
+            <span className="font-semibold text-sm tracking-tight">智光新程</span>
           </div>
         </div>
 
         {/* User info */}
-        <div className="px-4 py-4 border-b border-slate-700">
-          <p className="text-sm text-slate-400">欢迎回来</p>
-          <p className="font-medium">{userName}</p>
+        <div className="px-4 py-4 border-b border-gray-800">
+          <p className="text-xs text-gray-400 uppercase tracking-wide">欢迎回来</p>
+          <p className="font-medium mt-1 text-gray-200">{userName}</p>
         </div>
 
         {/* Menu */}
@@ -229,10 +229,11 @@ export default function Sidebar({ userRole, userName }: SidebarProps) {
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
                     className={`
-                      flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors
+                      flex items-center gap-3 px-4 py-2.5 rounded-lg mx-2
+                      text-sm font-medium transition-colors duration-150
                       ${isActive
-                        ? 'bg-indigo-600 text-white'
-                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        ? 'bg-primary text-white'
+                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                       }
                     `}
                   >
@@ -246,10 +247,10 @@ export default function Sidebar({ userRole, userName }: SidebarProps) {
         </nav>
 
         {/* Logout */}
-        <div className="p-4 border-t border-slate-700">
+        <div className="p-4 border-t border-gray-800">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-300 hover:bg-gray-800 hover:text-white rounded-lg transition-colors duration-150 text-sm font-medium"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
