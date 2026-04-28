@@ -1,5 +1,6 @@
 'use server';
 
+import { z } from 'zod';
 import { supabase } from '@/lib/supabase';
 import { getAuthCookie } from '@/lib/auth/cookie';
 import type {
@@ -9,6 +10,17 @@ import type {
   FundStats,
   FundBalance,
 } from '@/types/growth-fund';
+import { formatZodError } from '@/lib/validators';
+
+// Validation schema
+const createFundTransactionSchema = z.object({
+  employee_id: z.string().uuid('无效的员工ID'),
+  amount: z.number({ error: '请输入金额' }).positive('金额必须为正数'),
+  transaction_type: z.enum(['deposit', 'withdrawal', 'adjustment'] as const, {
+    error: '请选择交易类型',
+  }),
+  note: z.string().max(500, '备注不能超过500个字符').optional().nullable(),
+});
 
 // 获取成长基金统计（全员可见汇总）
 export async function getFundStatsAction(): Promise<{
@@ -210,6 +222,12 @@ export async function createFundTransactionAction(input: CreateFundTransactionIn
   // 只有 admin 和 gm 可以操作
   if (auth.role !== 'admin' && auth.role !== 'gm') {
     return { success: false, error: '无权操作' };
+  }
+
+  // Input validation
+  const parsed = createFundTransactionSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: formatZodError(parsed.error) };
   }
 
   // 获取当前余额
