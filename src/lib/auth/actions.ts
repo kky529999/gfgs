@@ -115,6 +115,7 @@ export async function loginAction(
       user_id: employee.id,
       role: userRole,
       phone: employee.phone,
+      name: employee.name,
     });
     await setAuthCookie(token);
 
@@ -270,7 +271,7 @@ export async function refreshSessionAction(): Promise<{
 // 获取当前用户信息（供客户端使用）
 export async function getAuthInfoAction(): Promise<{
   success: boolean;
-  data?: { user_id: string; role: string; phone: string } | null;
+  data?: { user_id: string; role: string; phone: string; name: string } | null;
   error?: string;
 }> {
   const auth = await getAuthCookie();
@@ -283,6 +284,7 @@ export async function getAuthInfoAction(): Promise<{
       user_id: auth.user_id,
       role: auth.role,
       phone: auth.phone,
+      name: auth.name,
     },
   };
 }

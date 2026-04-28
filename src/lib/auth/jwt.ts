@@ -8,6 +8,7 @@ export interface TokenPayload {
   user_id: string;
   role: UserRole;
   phone: string;
+  name: string;
 }
 
 export interface TokenResult {
