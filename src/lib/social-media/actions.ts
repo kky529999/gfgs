@@ -1,9 +1,33 @@
 'use server';
 
+import { z } from 'zod';
 import { supabase } from '@/lib/supabase';
 import { getAuthCookie } from '@/lib/auth/cookie';
 import { refreshSessionAction } from '@/lib/auth/actions';
+import { formatZodError } from '@/lib/validators';
 import { calculateReward } from './constants';
+
+// Validation schemas
+const createSocialMediaPostSchema = z.object({
+  employee_id: z.string().uuid('无效的员工ID'),
+  platform: z.string().min(1, '请输入平台').max(50, '平台名称不能超过50个字符'),
+  video_url: z.string().max(500, '视频链接不能超过500个字符').optional().nullable(),
+  duration_seconds: z.number({ error: '请输入时长' }).int('时长必须为整数').min(0, '时长不能为负数').optional().nullable(),
+  is_real_person: z.boolean({ error: '请选择是否真人出镜' }),
+  likes: z.number({ error: '请输入点赞数' }).int('点赞数必须为整数').min(0, '点赞数不能为负数').optional(),
+  views: z.number({ error: '请输入播放量' }).int('播放量必须为整数').min(0, '播放量不能为负数').optional(),
+  month: z.string().regex(/^\d{4}-\d{2}$/, '请输入正确的月份格式（YYYY-MM）'),
+});
+
+const updateSocialMediaPostSchema = z.object({
+  platform: z.string().min(1, '请输入平台').max(50, '平台名称不能超过50个字符').optional(),
+  video_url: z.string().max(500, '视频链接不能超过500个字符').optional().nullable(),
+  duration_seconds: z.number({ error: '请输入时长' }).int('时长必须为整数').min(0, '时长不能为负数').optional().nullable(),
+  is_real_person: z.boolean({ error: '请选择是否真人出镜' }).optional(),
+  likes: z.number({ error: '请输入点赞数' }).int('点赞数必须为整数').min(0, '点赞数不能为负数').optional(),
+  views: z.number({ error: '请输入播放量' }).int('播放量必须为整数').min(0, '播放量不能为负数').optional(),
+  month: z.string().regex(/^\d{4}-\d{2}$/, '请输入正确的月份格式（YYYY-MM）').optional(),
+});
 
 // Social media post type
 export interface SocialMediaPost {
@@ -101,6 +125,12 @@ export async function createSocialMediaPostAction(
   const permission = await checkAdminPermission();
   if (!permission.allowed) {
     return { success: false, error: permission.error };
+  }
+
+  // Input validation
+  const parsed = createSocialMediaPostSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: formatZodError(parsed.error) };
   }
 
   try {
