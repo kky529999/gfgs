@@ -1,8 +1,30 @@
 'use server';
 
+import { z } from 'zod';
 import { supabase } from '@/lib/supabase';
 import { getAuthCookie } from '@/lib/auth/cookie';
 import { refreshSessionAction } from '@/lib/auth/actions';
+import { formatZodError } from '@/lib/validators';
+
+// Validation schemas
+const createSalaryRecordSchema = z.object({
+  employee_id: z.string().uuid('无效的员工ID'),
+  year_month: z.string().regex(/^\d{4}-\d{2}$/, '请输入正确的月份格式（YYYY-MM）'),
+  base_salary: z.number({ error: '请输入基本工资' }).min(0, '基本工资不能为负数'),
+  commission_amount: z.number({ error: '请输入提成' }).min(0, '提成不能为负数').optional(),
+  growth_fund_amount: z.number({ error: '请输入成长基金' }).min(0, '成长基金不能为负数').optional(),
+  other_amount: z.number({ error: '请输入其他金额' }).min(0, '其他金额不能为负数').optional(),
+  note: z.string().max(500, '备注不能超过500个字符').optional().nullable(),
+});
+
+const updateSalaryRecordSchema = z.object({
+  year_month: z.string().regex(/^\d{4}-\d{2}$/, '请输入正确的月份格式（YYYY-MM）').optional(),
+  base_salary: z.number({ error: '请输入基本工资' }).min(0, '基本工资不能为负数').optional(),
+  commission_amount: z.number({ error: '请输入提成' }).min(0, '提成不能为负数').optional(),
+  growth_fund_amount: z.number({ error: '请输入成长基金' }).min(0, '成长基金不能为负数').optional(),
+  other_amount: z.number({ error: '请输入其他金额' }).min(0, '其他金额不能为负数').optional(),
+  note: z.string().max(500, '备注不能超过500个字符').optional().nullable(),
+});
 
 // Salary record type
 export interface SalaryRecord {
@@ -104,6 +126,12 @@ export async function createSalaryRecordAction(
     return { success: false, error: permission.error };
   }
 
+  // Input validation
+  const parsed = createSalaryRecordSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: formatZodError(parsed.error) };
+  }
+
   try {
     const total = input.base_salary + (input.commission_amount || 0) + (input.growth_fund_amount || 0) + (input.other_amount || 0);
 
@@ -145,6 +173,12 @@ export async function updateSalaryRecordAction(
   const permission = await checkAdminPermission();
   if (!permission.allowed) {
     return { success: false, error: permission.error };
+  }
+
+  // Input validation
+  const parsed = updateSalaryRecordSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: formatZodError(parsed.error) };
   }
 
   try {
