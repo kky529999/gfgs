@@ -10,6 +10,15 @@ import {
 } from '@/lib/invoices/actions';
 import type { Invoice } from '@/types';
 
+interface InvoiceFormData {
+  customer_id: string;
+  brand: string;
+  invoice_no: string;
+  amount: string;
+  invoice_date: string;
+  note: string;
+}
+
 export function InvoicesClient() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [customers, setCustomers] = useState<{ id: string; name: string; brand: string | null }[]>([]);
@@ -18,7 +27,7 @@ export function InvoicesClient() {
   const [brandFilter, setBrandFilter] = useState('');
   const [error, setError] = useState('');
 
-  const [formData, setFormData] = useState<CreateInvoiceInput>({
+  const [formData, setFormData] = useState<InvoiceFormData>({
     customer_id: '',
     brand: '',
     invoice_no: '',

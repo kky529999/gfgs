@@ -1,29 +1,14 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { use, useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   getCustomerAction,
   updateCustomerAction,
   advanceStageAction,
-  getEmployeesAction,
-  getDealersAction,
 } from '@/lib/customers/actions';
 import { getAuthInfoAction } from '@/lib/auth/actions';
 import { STAGE_LABELS, STAGE_ORDER, CUSTOMER_TYPE_LABELS, type CustomerStage, type CustomerWithRelations } from '@/types/customer';
-
-interface Employee {
-  id: string;
-  name: string;
-  phone: string;
-  role: string;
-}
-
-interface Dealer {
-  id: string;
-  name: string;
-}
 
 export default function CustomerDetailPage({
   params,
@@ -31,11 +16,8 @@ export default function CustomerDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const router = useRouter();
   const [auth, setAuth] = useState<{ user_id: string; role: string } | null>(null);
   const [customer, setCustomer] = useState<CustomerWithRelations | null>(null);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [dealers, setDealers] = useState<Dealer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -50,28 +32,6 @@ export default function CustomerDetailPage({
   const [targetStage, setTargetStage] = useState<CustomerStage | null>(null);
   const [stageDate, setStageDate] = useState('');
   const [stageNote, setStageNote] = useState('');
-
-  useEffect(() => {
-    getAuthInfoAction().then((result) => {
-      if (result.success && result.data) {
-        setAuth(result.data);
-      }
-    });
-
-    getEmployeesAction().then((result) => {
-      if (result.success && result.data) {
-        setEmployees(result.data);
-      }
-    });
-
-    getDealersAction().then((result) => {
-      if (result.success && result.data) {
-        setDealers(result.data);
-      }
-    });
-
-    loadCustomer();
-  }, [id]);
 
   const loadCustomer = async () => {
     setLoading(true);
@@ -111,6 +71,16 @@ export default function CustomerDetailPage({
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    getAuthInfoAction().then((result) => {
+      if (result.success && result.data) {
+        setAuth(result.data);
+      }
+    });
+
+    loadCustomer();
+  }, [id]);
 
   const handleEditChange = (name: string, value: string) => {
     setEditForm((prev) => ({ ...prev, [name]: value }));

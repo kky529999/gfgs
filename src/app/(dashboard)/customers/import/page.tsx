@@ -1,11 +1,9 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { importCustomersFromExcelAction } from '@/lib/import/excel';
 import { parseExcelFile } from '@/lib/import/excel-utils';
-import { getAuthInfoAction } from '@/lib/auth/actions';
 
 interface ParseResult {
   headers: string[];
@@ -14,9 +12,7 @@ interface ParseResult {
 }
 
 export default function ImportCustomersPage() {
-  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [auth, setAuth] = useState<{ user_id: string; role: string } | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
   const [importing, setImporting] = useState(false);
@@ -28,18 +24,6 @@ export default function ImportCustomersPage() {
     error?: string;
   } | null>(null);
   const [error, setError] = useState('');
-
-  // Check auth on mount
-  useState(() => {
-    getAuthInfoAction().then((res) => {
-      if (res.success && res.data) {
-        setAuth(res.data);
-        if (res.data.role !== 'admin' && res.data.role !== 'gm') {
-          router.push('/customers');
-        }
-      }
-    });
-  });
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -67,7 +51,7 @@ export default function ImportCustomersPage() {
       }));
 
       setParseResult({ headers, rows, preview });
-    } catch (err) {
+    } catch {
       setError('无法解析Excel文件');
     }
   };
@@ -83,7 +67,7 @@ export default function ImportCustomersPage() {
       const buffer = await file.arrayBuffer();
       const importResult = await importCustomersFromExcelAction(buffer);
       setResult(importResult);
-    } catch (err) {
+    } catch {
       setError('导入失败');
     }
 

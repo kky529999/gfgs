@@ -1,21 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import { WarehouseClient } from './_components/WarehouseClient';
-import { NewMaterialForm } from './_components/NewMaterialForm';
+import { useRouter } from 'next/navigation';
+import { WarehouseClient } from './WarehouseClient';
+import { NewMaterialForm } from './NewMaterialForm';
 import type { WarehouseMaterial } from '@/types';
-import { revalidatePath } from 'next/navigation';
 
 interface WarehouseContentProps {
   materials: WarehouseMaterial[];
 }
 
 export function WarehouseContent({ materials }: WarehouseContentProps) {
+  const router = useRouter();
   const [showNewForm, setShowNewForm] = useState(false);
 
   const handleSuccess = () => {
     setShowNewForm(false);
-    revalidatePath('/warehouse');
+    router.refresh();
   };
 
   return (

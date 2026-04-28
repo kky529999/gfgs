@@ -8,11 +8,13 @@ import {
   updateSocialMediaPostAction,
   approveSocialMediaPostAction,
   deleteSocialMediaPostAction,
-  REWARD_NORMAL,
-  REWARD_REAL_PERSON,
   type SocialMediaPost,
   type CreateSocialMediaPostInput,
 } from '@/lib/social-media/actions';
+import {
+  REWARD_NORMAL,
+  REWARD_REAL_PERSON,
+} from '@/lib/social-media/constants';
 
 export function SocialMediaClient() {
   const [posts, setPosts] = useState<SocialMediaPost[]>([]);
@@ -35,11 +37,6 @@ export function SocialMediaClient() {
     month: yearMonth,
   });
 
-  useEffect(() => {
-    loadEmployees();
-    loadPosts();
-  }, [yearMonth]);
-
   const loadEmployees = async () => {
     const res = await getSocialMediaEmployeesAction();
     if (res.success) setEmployees(res.data || []);
@@ -51,6 +48,11 @@ export function SocialMediaClient() {
     if (res.success) setPosts(res.data || []);
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadEmployees();
+    loadPosts();
+  }, [yearMonth]);
 
   const handleOpenForm = () => {
     setError('');

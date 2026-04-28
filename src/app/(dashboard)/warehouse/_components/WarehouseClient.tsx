@@ -388,7 +388,7 @@ export function WarehouseClient({ initialMaterials }: WarehouseClientProps) {
                         {movement.type === 'inbound' ? '+' : movement.type === 'outbound' ? '-' : ''}{movement.quantity}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500">
-                        {(movement.operator as any)?.name || '-'}
+                        {movement.operator?.name || '-'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500">{movement.note || '-'}</td>
                     </tr>

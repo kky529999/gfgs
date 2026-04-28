@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   getCommissionAction,
@@ -15,7 +15,6 @@ import type { CommissionWithRelations } from '@/types/commission';
 
 export default function CommissionDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const commissionId = params.id as string;
 
   const [commission, setCommission] = useState<CommissionWithRelations | null>(null);
@@ -27,15 +26,6 @@ export default function CommissionDetailPage() {
   const [note, setNote] = useState('');
   const [pendingStatus, setPendingStatus] = useState<CommissionStatus | null>(null);
 
-  useEffect(() => {
-    getAuthInfoAction().then((result) => {
-      if (result.success && result.data) {
-        setAuth(result.data);
-      }
-    });
-    fetchCommission();
-  }, [commissionId]);
-
   const fetchCommission = async () => {
     setLoading(true);
     const result = await getCommissionAction(commissionId);
@@ -46,6 +36,15 @@ export default function CommissionDetailPage() {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    getAuthInfoAction().then((result) => {
+      if (result.success && result.data) {
+        setAuth(result.data);
+      }
+    });
+    fetchCommission();
+  }, [commissionId]);
 
   const handleStatusUpdate = async () => {
     if (!pendingStatus) return;
@@ -114,8 +113,6 @@ export default function CommissionDetailPage() {
         return false;
     }
   };
-
-  const isAdminOrGM = auth?.role === 'admin' || auth?.role === 'gm';
 
   if (loading) {
     return (

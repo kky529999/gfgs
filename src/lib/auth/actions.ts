@@ -1,7 +1,7 @@
 'use server';
 
 import bcrypt from 'bcryptjs';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { signToken } from '@/lib/auth/jwt';
 import { setAuthCookie, clearAuthCookie, getAuthCookie } from '@/lib/auth/cookie';
 import type { AuthUser, LoginInput, ChangePasswordInput } from '@/types';
@@ -23,8 +23,8 @@ export async function loginAction(
   input: LoginInput
 ): Promise<{ success: boolean; error?: string; redirectTo?: string }> {
   try {
-    // 1. 查询员工
-    const { data: employee, error: queryError } = await supabase
+    // 1. 查询员工（使用 supabaseAdmin 绕过 RLS，因为登录时无认证上下文）
+    const { data: employee, error: queryError } = await supabaseAdmin
       .from('employees')
       .select('id, phone, password_hash, name, title, department_id, is_active, must_change_password')
       .eq('phone', input.phone)
@@ -49,7 +49,7 @@ export async function loginAction(
     let userRole: UserRole = 'business'; // 默认角色
 
     if (employee.department_id) {
-      const { data: dept } = await supabase
+      const { data: dept } = await supabaseAdmin
         .from('departments')
         .select('code')
         .eq('id', employee.department_id)
@@ -72,8 +72,12 @@ export async function loginAction(
       phone: employee.phone,
     });
 
-    // 6. 设置 RLS 会话
-    await setupSession(employee.id, userRole);
+    // 6. 设置 RLS 会话（非阻塞，失败不影响登录）
+    try {
+      await setupSession(employee.id, userRole);
+    } catch (sessionError) {
+      console.warn('RLS session setup failed, continuing anyway:', sessionError);
+    }
 
     // 7. 决定跳转目标
     if (employee.must_change_password) {

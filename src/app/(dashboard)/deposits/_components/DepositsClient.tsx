@@ -14,7 +14,6 @@ import {
   type CreateDealerDepositInput,
 } from '@/lib/deposits/actions';
 import type { BrandDeposit, DealerDeposit, Dealer } from '@/types';
-import { revalidatePath } from 'next/navigation';
 
 type Tab = 'brand' | 'dealer';
 

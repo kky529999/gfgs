@@ -35,11 +35,6 @@ export function SalaryClient() {
     note: '',
   });
 
-  useEffect(() => {
-    loadEmployees();
-    loadRecords();
-  }, [yearMonth]);
-
   const loadEmployees = async () => {
     const res = await getSalaryEmployeesAction();
     if (res.success) setEmployees(res.data || []);
@@ -51,6 +46,11 @@ export function SalaryClient() {
     if (res.success) setRecords(res.data || []);
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadEmployees();
+    loadRecords();
+  }, [yearMonth]);
 
   const handleOpenForm = (record?: SalaryRecord) => {
     setError('');

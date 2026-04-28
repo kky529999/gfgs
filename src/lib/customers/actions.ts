@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { getAuthCookie } from '@/lib/auth/cookie';
 import { refreshSessionAction } from '@/lib/auth/actions';
 import type {
@@ -14,14 +14,6 @@ import type {
   CustomerStage,
 } from '@/types/customer';
 import { STAGE_ORDER } from '@/types/customer';
-
-// Helper to set RLS session context
-async function withRLS<T>(
-  callback: (supabase: typeof import('@/lib/supabase').supabase) => Promise<T>
-): Promise<T> {
-  await refreshSessionAction();
-  return callback(supabase);
-}
 
 // Get all customers (with role-based filtering)
 export async function getCustomersAction(): Promise<{
@@ -37,7 +29,9 @@ export async function getCustomersAction(): Promise<{
   try {
     await refreshSessionAction();
 
-    let query = supabase
+    // Use supabaseAdmin to bypass RLS for admin/gm access
+    // This ensures admin users can see all customers
+    let query = supabaseAdmin
       .from('customers')
       .select(
         `
@@ -87,7 +81,8 @@ export async function getCustomerAction(
   try {
     await refreshSessionAction();
 
-    const { data, error } = await supabase
+    // Use supabaseAdmin for consistent data access
+    const { data, error } = await supabaseAdmin
       .from('customers')
       .select(
         `
@@ -143,7 +138,8 @@ export async function createCustomerAction(
       input.salesperson_id ||
       (auth.role === 'business' ? auth.user_id : undefined);
 
-    const { data, error } = await supabase
+    // Use supabaseAdmin for consistent data access
+    const { data, error } = await supabaseAdmin
       .from('customers')
       .insert({
         name: input.name,
@@ -201,8 +197,8 @@ export async function updateCustomerAction(
   try {
     await refreshSessionAction();
 
-    // Check access permission first
-    const { data: existing } = await supabase
+    // Check access permission first (use supabaseAdmin for consistency)
+    const { data: existing } = await supabaseAdmin
       .from('customers')
       .select('salesperson_id, tech_assigned_id')
       .eq('id', customerId)
@@ -219,7 +215,8 @@ export async function updateCustomerAction(
       return { success: false, error: '无权修改此客户' };
     }
 
-    const { data, error } = await supabase
+    // Use supabaseAdmin for consistent data access
+    const { data, error } = await supabaseAdmin
       .from('customers')
       .update({
         ...input,
@@ -260,8 +257,8 @@ export async function advanceStageAction(
   try {
     await refreshSessionAction();
 
-    // Get current customer state
-    const { data: customer, error: fetchError } = await supabase
+    // Get current customer state (use supabaseAdmin for consistency)
+    const { data: customer, error: fetchError } = await supabaseAdmin
       .from('customers')
       .select('current_stage, salesperson_id, tech_assigned_id')
       .eq('id', input.customer_id)
@@ -293,8 +290,8 @@ export async function advanceStageAction(
       updateData[stageDateField] = new Date().toISOString().split('T')[0];
     }
 
-    // Update customer
-    const { error: updateError } = await supabase
+    // Update customer (use supabaseAdmin for consistency)
+    const { error: updateError } = await supabaseAdmin
       .from('customers')
       .update(updateData)
       .eq('id', input.customer_id);
@@ -304,8 +301,8 @@ export async function advanceStageAction(
       return { success: false, error: '更新阶段失败' };
     }
 
-    // Log the progress
-    await supabase.from('progress_logs').insert({
+    // Log the progress (use supabaseAdmin for consistency)
+    await supabaseAdmin.from('progress_logs').insert({
       customer_id: input.customer_id,
       operator_id: auth.user_id,
       from_stage: customer.current_stage,
@@ -343,7 +340,8 @@ export async function getEmployeesAction(): Promise<{
   try {
     await refreshSessionAction();
 
-    const { data, error } = await supabase
+    // Use supabaseAdmin for consistent data access
+    const { data, error } = await supabaseAdmin
       .from('employees')
       .select('id, name, phone, role')
       .eq('is_active', true)
@@ -375,7 +373,8 @@ export async function getDealersAction(): Promise<{
   try {
     await refreshSessionAction();
 
-    const { data, error } = await supabase
+    // Use supabaseAdmin for consistent data access
+    const { data, error } = await supabaseAdmin
       .from('dealers')
       .select('id, name')
       .eq('status', 'active')

@@ -168,7 +168,7 @@ export function EditBrandPolicyClient({ policyId }: EditBrandPolicyPageProps) {
     );
   }
 
-  const isExpired = policy.effective_to && new Date(policy.effective_to) < new Date();
+  const isExpired = policy.effective_to ? new Date(policy.effective_to) < new Date() : false;
 
   return (
     <div className="space-y-6">
@@ -467,7 +467,7 @@ export function EditBrandPolicyClient({ policyId }: EditBrandPolicyPageProps) {
             <p>创建时间：{formatDate(policy.created_at)}</p>
             <p>更新时间：{formatDate(policy.updated_at)}</p>
             {policy.creator && (
-              <p>创建人：{(policy.creator as any).name || '未知'}</p>
+              <p>创建人：{policy.creator?.name || '未知'}</p>
             )}
           </div>
 

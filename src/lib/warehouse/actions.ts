@@ -303,7 +303,7 @@ export async function createStockMovementAction(
     // Get current material
     const { data: material, error: materialError } = await supabase
       .from('warehouse_materials')
-      .select('quantity')
+      .select('quantity, status')
       .eq('id', input.material_id)
       .single();
 
@@ -348,7 +348,7 @@ export async function createStockMovementAction(
         type: input.type,
         quantity: input.quantity,
         customer_id: input.customer_id || null,
-        operator_id: auth.employeeId,
+        operator_id: auth.user_id,
         record_date: input.record_date,
         note: input.note || null,
       })

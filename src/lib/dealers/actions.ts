@@ -296,7 +296,7 @@ export async function addDealerDepositAction(
         type: input.type,
         record_date: input.record_date,
         note: input.note || '',
-        created_by: auth.employeeId,
+        created_by: auth.user_id,
       })
       .select()
       .single();

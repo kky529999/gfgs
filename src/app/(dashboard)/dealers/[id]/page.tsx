@@ -55,6 +55,7 @@ export default function EditDealerPage({ params }: EditDealerPageProps) {
     if (!dealerId) return;
 
     async function fetchData() {
+      if (!dealerId) return;
       setLoading(true);
       const [dealerResult, depositsResult] = await Promise.all([
         getDealerAction(dealerId),
@@ -431,7 +432,7 @@ export default function EditDealerPage({ params }: EditDealerPageProps) {
           <div className="bg-gray-50 rounded-lg p-4">
             <div className="text-sm text-gray-500">应缴押金</div>
             <div className="text-xl font-bold text-gray-900 mt-1">
-              ¥{dealer.deposit_amount.toLocaleString('zh-CN')}
+              ¥{(dealer.deposit_amount || 0).toLocaleString('zh-CN')}
             </div>
           </div>
           <div className="bg-gray-50 rounded-lg p-4">

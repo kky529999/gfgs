@@ -42,6 +42,7 @@ export default function EditEmployeePage({ params }: EditEmployeePageProps) {
     if (!employeeId) return;
 
     async function fetchData() {
+      if (!employeeId) return;
       setLoading(true);
       const [empResult, deptResult] = await Promise.all([
         getEmployeeAction(employeeId),

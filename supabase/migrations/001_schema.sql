@@ -3,8 +3,7 @@
 -- 第一阶段：基础结构 + 认证 + 权限
 -- ============================================================
 
--- 1. 扩展
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- 1. 扩展（使用 gen_random_uuid 不需要额外扩展）
 
 -- 2. 枚举类型（自定义枚举）
 DO $$ BEGIN
@@ -85,7 +84,7 @@ END $$;
 
 -- 3.1 departments（部门表）
 CREATE TABLE IF NOT EXISTS departments (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   code TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -93,7 +92,7 @@ CREATE TABLE IF NOT EXISTS departments (
 
 -- 3.2 employees（员工表）
 CREATE TABLE IF NOT EXISTS employees (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   phone TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   name TEXT NOT NULL,
@@ -107,7 +106,7 @@ CREATE TABLE IF NOT EXISTS employees (
 
 -- 3.3 customers（客户表）
 CREATE TABLE IF NOT EXISTS customers (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   -- 基本信息
   name TEXT NOT NULL,
   phone TEXT,
@@ -163,7 +162,7 @@ CREATE TABLE IF NOT EXISTS customers (
 
 -- 3.4 progress_logs（进度日志表）
 CREATE TABLE IF NOT EXISTS progress_logs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
   operator_id UUID REFERENCES employees(id),
   from_stage customer_stage,
@@ -174,7 +173,7 @@ CREATE TABLE IF NOT EXISTS progress_logs (
 
 -- 3.5 commissions（提成表）
 CREATE TABLE IF NOT EXISTS commissions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
   employee_id UUID NOT NULL REFERENCES employees(id),
   type commission_type NOT NULL,
@@ -190,7 +189,7 @@ CREATE TABLE IF NOT EXISTS commissions (
 
 -- 3.6 growth_fund（成长基金表）
 CREATE TABLE IF NOT EXISTS growth_fund (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   employee_id UUID NOT NULL REFERENCES employees(id),
   amount NUMERIC(10, 2) NOT NULL,
   reason TEXT NOT NULL,
@@ -202,7 +201,7 @@ CREATE TABLE IF NOT EXISTS growth_fund (
 
 -- 3.7 social_media_posts（自媒体表）
 CREATE TABLE IF NOT EXISTS social_media_posts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   employee_id UUID NOT NULL REFERENCES employees(id),
   platform social_media_platform NOT NULL,
   video_url TEXT,
@@ -218,7 +217,7 @@ CREATE TABLE IF NOT EXISTS social_media_posts (
 
 -- 3.8 brand_policies（品牌政策表）
 CREATE TABLE IF NOT EXISTS brand_policies (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   version INTEGER NOT NULL DEFAULT 1,
   brand TEXT NOT NULL,
   city TEXT,
@@ -241,7 +240,7 @@ CREATE TABLE IF NOT EXISTS brand_policies (
 
 -- 3.9 dealers（二级商表）
 CREATE TABLE IF NOT EXISTS dealers (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   contact TEXT,
   phone TEXT,
@@ -260,7 +259,7 @@ CREATE TABLE IF NOT EXISTS dealers (
 
 -- 3.10 dealer_deposits（二级商押金记录表）
 CREATE TABLE IF NOT EXISTS dealer_deposits (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   dealer_id UUID NOT NULL REFERENCES dealers(id) ON DELETE CASCADE,
   amount NUMERIC(12, 2) NOT NULL,
   type deposit_type NOT NULL,
@@ -272,7 +271,7 @@ CREATE TABLE IF NOT EXISTS dealer_deposits (
 
 -- 3.11 brand_deposits（品牌方押金表）
 CREATE TABLE IF NOT EXISTS brand_deposits (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   brand TEXT NOT NULL,
   amount NUMERIC(12, 2) NOT NULL,
   pay_date DATE,
@@ -285,7 +284,7 @@ CREATE TABLE IF NOT EXISTS brand_deposits (
 
 -- 3.12 invoices（发票表）
 CREATE TABLE IF NOT EXISTS invoices (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
   brand TEXT NOT NULL,
   invoice_no TEXT,
@@ -298,7 +297,7 @@ CREATE TABLE IF NOT EXISTS invoices (
 
 -- 3.13 monthly_target_bonus（月度达量奖励表）
 CREATE TABLE IF NOT EXISTS monthly_target_bonus (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   brand TEXT NOT NULL,
   year_month TEXT NOT NULL,
   target_panels INTEGER,
@@ -667,25 +666,25 @@ INSERT INTO departments (id, code, name) VALUES
 ON CONFLICT (code) DO NOTHING;
 
 -- 员工（默认密码 123456 的 bcrypt hash）
--- hash: $2b$10$KIXxK1kBXQ9F5Y5Y5Y5Y5.Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5
+-- hash: $2b$10$kijS3yMFoq1z2nq8DuFA1.fsIasJUhSpyWjFTe0uXCWZlPvaQZPZe
 -- 实际默认密码为 123456，首次登录强制修改
 INSERT INTO employees (id, phone, password_hash, name, title, department_id, must_change_password) VALUES
   -- 综合管理部
-  ('10000000-0000-0000-0000-000000000001', '18809185627', '$2b$10$rQZ5kZ9Y5Y5Y5Y5Y5Y5Y5OY5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5', '王总', '副总经理', '00000000-0000-0000-0000-000000000001', false),
-  ('10000000-0000-0000-0000-000000000002', '18161779522', '$2b$10$rQZ5kZ9Y5Y5Y5Y5Y5Y5Y5OY5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5', '陈总', '副总经理', '00000000-0000-0000-0000-000000000001', false),
-  ('10000000-0000-0000-0000-000000000003', '15191742312', '$2b$10$rQZ5kZ9Y5Y5Y5Y5Y5Y5Y5OY5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5', '赵丽娟', '综合主管', '00000000-0000-0000-0000-000000000001', true),
-  ('10000000-0000-0000-0000-000000000004', '18392747243', '$2b$10$rQZ5kZ9Y5Y5Y5Y5Y5Y5Y5OY5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5', '赵荣丽', '综合文员', '00000000-0000-0000-0000-000000000001', true),
-  ('10000000-0000-0000-0000-000000000005', '18700753140', '$2b$10$rQZ5kZ9Y5Y5Y5Y5Y5Y5Y5OY5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5', '张鹏娟', '综合文员', '00000000-0000-0000-0000-000000000001', true),
+  ('10000000-0000-0000-0000-000000000001', '18809185627', '$2b$10$kijS3yMFoq1z2nq8DuFA1.fsIasJUhSpyWjFTe0uXCWZlPvaQZPZe', '王总', '副总经理', '00000000-0000-0000-0000-000000000001', false),
+  ('10000000-0000-0000-0000-000000000002', '18161779522', '$2b$10$kijS3yMFoq1z2nq8DuFA1.fsIasJUhSpyWjFTe0uXCWZlPvaQZPZe', '陈总', '副总经理', '00000000-0000-0000-0000-000000000001', false),
+  ('10000000-0000-0000-0000-000000000003', '15191742312', '$2b$10$kijS3yMFoq1z2nq8DuFA1.fsIasJUhSpyWjFTe0uXCWZlPvaQZPZe', '赵丽娟', '综合主管', '00000000-0000-0000-0000-000000000001', true),
+  ('10000000-0000-0000-0000-000000000004', '18392747243', '$2b$10$kijS3yMFoq1z2nq8DuFA1.fsIasJUhSpyWjFTe0uXCWZlPvaQZPZe', '赵荣丽', '综合文员', '00000000-0000-0000-0000-000000000001', true),
+  ('10000000-0000-0000-0000-000000000005', '18700753140', '$2b$10$kijS3yMFoq1z2nq8DuFA1.fsIasJUhSpyWjFTe0uXCWZlPvaQZPZe', '张鹏娟', '综合文员', '00000000-0000-0000-0000-000000000001', true),
   -- 技术方案部
-  ('10000000-0000-0000-0000-000000000006', '13152248078', '$2b$10$rQZ5kZ9Y5Y5Y5Y5Y5Y5Y5OY5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5', '韩磊', '技术主管', '00000000-0000-0000-0000-000000000003', true),
-  ('10000000-0000-0000-0000-000000000007', '17392614097', '$2b$10$rQZ5kZ9Y5Y5Y5Y5Y5Y5Y5OY5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5', '樊豪', '技术员', '00000000-0000-0000-0000-000000000003', true),
+  ('10000000-0000-0000-0000-000000000006', '13152248078', '$2b$10$kijS3yMFoq1z2nq8DuFA1.fsIasJUhSpyWjFTe0uXCWZlPvaQZPZe', '韩磊', '技术主管', '00000000-0000-0000-0000-000000000003', true),
+  ('10000000-0000-0000-0000-000000000007', '17392614097', '$2b$10$kijS3yMFoq1z2nq8DuFA1.fsIasJUhSpyWjFTe0uXCWZlPvaQZPZe', '樊豪', '技术员', '00000000-0000-0000-0000-000000000003', true),
   -- 业务开发部
-  ('10000000-0000-0000-0000-000000000008', '15339051443', '$2b$10$rQZ5kZ9Y5Y5Y5Y5Y5Y5Y5OY5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5', '李建龙', '业务主管', '00000000-0000-0000-0000-000000000002', true),
-  ('10000000-0000-0000-0000-000000000009', '17729495012', '$2b$10$rQZ5kZ9Y5Y5Y5Y5Y5Y5Y5OY5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5', '葛小龙', '业务员', '00000000-0000-0000-0000-000000000002', true),
-  ('10000000-0000-0000-0000-000000000010', '15709278018', '$2b$10$rQZ5kZ9Y5Y5Y5Y5Y5Y5Y5OY5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5', '焦志贤', '业务员', '00000000-0000-0000-0000-000000000002', true),
-  ('10000000-0000-0000-0000-000000000011', '13162253602', '$2b$10$rQZ5kZ9Y5Y5Y5Y5Y5Y5Y5OY5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5', '刘智军', '业务员', '00000000-0000-0000-0000-000000000002', true)
+  ('10000000-0000-0000-0000-000000000008', '15339051443', '$2b$10$kijS3yMFoq1z2nq8DuFA1.fsIasJUhSpyWjFTe0uXCWZlPvaQZPZe', '李建龙', '业务主管', '00000000-0000-0000-0000-000000000002', true),
+  ('10000000-0000-0000-0000-000000000009', '17729495012', '$2b$10$kijS3yMFoq1z2nq8DuFA1.fsIasJUhSpyWjFTe0uXCWZlPvaQZPZe', '葛小龙', '业务员', '00000000-0000-0000-0000-000000000002', true),
+  ('10000000-0000-0000-0000-000000000010', '15709278018', '$2b$10$kijS3yMFoq1z2nq8DuFA1.fsIasJUhSpyWjFTe0uXCWZlPvaQZPZe', '焦志贤', '业务员', '00000000-0000-0000-0000-000000000002', true),
+  ('10000000-0000-0000-0000-000000000011', '13162253602', '$2b$10$kijS3yMFoq1z2nq8DuFA1.fsIasJUhSpyWjFTe0uXCWZlPvaQZPZe', '刘智军', '业务员', '00000000-0000-0000-0000-000000000002', true)
 ON CONFLICT DO NOTHING;
 
 -- 重新设置密码 hash（正确的 bcrypt 加密 "123456"）
 -- 真实密码需要在初始化后替换这些 hash
--- UPDATE employees SET password_hash = '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi';
+-- UPDATE employees SET password_hash = '$2b$10$kijS3yMFoq1z2nq8DuFA1.fsIasJUhSpyWjFTe0uXCWZlPvaQZPZe';

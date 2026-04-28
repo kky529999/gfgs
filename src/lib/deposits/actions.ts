@@ -250,7 +250,7 @@ export async function createDealerDepositAction(
         type: input.type,
         record_date: input.record_date || new Date().toISOString().split('T')[0],
         note: input.note || null,
-        created_by: auth.employeeId,
+        created_by: auth.user_id,
       })
       .select('*, dealer:dealers(*), creator:employees(*)')
       .single();

@@ -178,7 +178,7 @@ export async function createBrandPolicyAction(
         note: input.note || null,
         is_active: !input.effective_to,
         version: nextVersion,
-        created_by: auth.employeeId,
+        created_by: auth.user_id,
       })
       .select()
       .single();

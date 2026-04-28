@@ -8,14 +8,11 @@ import {
   calculateCommissionAction,
 } from '@/lib/commissions/actions';
 import { getCustomersAction } from '@/lib/customers/actions';
-import { getAuthInfoAction } from '@/lib/auth/actions';
-import { COMMISSION_TYPE_LABELS } from '@/types/commission';
 import type { CommissionType } from '@/types/commission';
 import type { Customer } from '@/types/customer';
 
 export default function NewCommissionPage() {
   const router = useRouter();
-  const [auth, setAuth] = useState<{ user_id: string; role: string } | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
   const [calculating, setCalculating] = useState(false);
@@ -31,16 +28,6 @@ export default function NewCommissionPage() {
   });
 
   useEffect(() => {
-    getAuthInfoAction().then((result) => {
-      if (result.success && result.data) {
-        setAuth(result.data);
-        // 只有 admin 和 gm 可以访问此页面
-        if (result.data.role !== 'admin' && result.data.role !== 'gm') {
-          router.push('/commissions');
-        }
-      }
-    });
-
     // 加载客户列表
     getCustomersAction().then((result) => {
       if (result.success && result.data) {

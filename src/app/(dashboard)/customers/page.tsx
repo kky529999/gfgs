@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { getCustomersAction } from '@/lib/customers/actions';
 import { getAuthCookie } from '@/lib/auth/cookie';
-import { STAGE_LABELS, STAGE_ORDER, CUSTOMER_TYPE_LABELS, type CustomerStage } from '@/types/customer';
+import { STAGE_LABELS, STAGE_ORDER, type CustomerStage } from '@/types/customer';
 
 export default async function CustomersPage() {
   const auth = await getAuthCookie();
@@ -85,7 +85,6 @@ export default async function CustomersPage() {
               <tbody className="divide-y divide-gray-200">
                 {customers.map((customer) => {
                   const stageIndex = getStageIndex(customer.current_stage);
-                  const progress = ((stageIndex + 1) / STAGE_ORDER.length) * 100;
 
                   return (
                     <tr key={customer.id} className="hover:bg-gray-50 transition-colors">

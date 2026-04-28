@@ -37,11 +37,6 @@ export default function CommissionsPage() {
     });
   }, []);
 
-  useEffect(() => {
-    fetchCommissions();
-    fetchStats();
-  }, [statusFilter, typeFilter]);
-
   const fetchCommissions = async () => {
     setLoading(true);
     const result = await getCommissionsAction({
@@ -61,6 +56,11 @@ export default function CommissionsPage() {
       setStats(result.data);
     }
   };
+
+  useEffect(() => {
+    fetchCommissions();
+    fetchStats();
+  }, [statusFilter, typeFilter]);
 
   const statusColors: Record<CommissionStatus, string> = {
     pending: 'bg-gray-100 text-gray-800',

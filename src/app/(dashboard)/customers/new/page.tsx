@@ -9,8 +9,7 @@ import {
   getDealersAction,
 } from '@/lib/customers/actions';
 import { getAuthInfoAction } from '@/lib/auth/actions';
-import type { CustomerType, CustomerStage } from '@/types/customer';
-import { STAGE_LABELS, STAGE_ORDER } from '@/types/customer';
+import type { CustomerType } from '@/types/customer';
 
 interface Employee {
   id: string;
@@ -46,7 +45,6 @@ export default function NewCustomerPage() {
   const [auth, setAuth] = useState<{ user_id: string; role: string } | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [dealers, setDealers] = useState<Dealer[]>([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -129,7 +127,7 @@ export default function NewCustomerPage() {
       } else {
         setError(result.error || '创建失败');
       }
-    } catch (err) {
+    } catch {
       setError('系统错误');
     } finally {
       setSubmitting(false);

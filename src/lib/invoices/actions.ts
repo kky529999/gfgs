@@ -95,7 +95,7 @@ export async function createInvoiceAction(
         amount: input.amount,
         invoice_date: input.invoice_date || null,
         note: input.note || null,
-        created_by: auth.employeeId,
+        created_by: auth.user_id,
       })
       .select('*, customer:customers(name, brand)')
       .single();

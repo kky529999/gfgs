@@ -2,7 +2,7 @@
 
 import bcrypt from 'bcryptjs';
 import { revalidatePath } from 'next/cache';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { getAuthCookie } from '@/lib/auth/cookie';
 import { refreshSessionAction } from '@/lib/auth/actions';
 import type { Employee, Department } from '@/types';
@@ -32,7 +32,7 @@ export async function getEmployeesAction(): Promise<{
   }
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('employees')
       .select('*, department:departments(*)')
       .order('name');
@@ -63,7 +63,7 @@ export async function getEmployeeAction(
   }
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('employees')
       .select('*, department:departments(*)')
       .eq('id', employeeId)
@@ -93,7 +93,7 @@ export async function getDepartmentsAction(): Promise<{
   }
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('departments')
       .select('*')
       .order('name');
@@ -141,9 +141,9 @@ export async function createEmployeeAction(
     return { success: false, error: permission.error };
   }
 
-  try {
+    try {
     // Check if phone already exists
-    const { data: existing } = await supabase
+    const { data: existing } = await supabaseAdmin
       .from('employees')
       .select('id')
       .eq('phone', input.phone)
@@ -156,7 +156,7 @@ export async function createEmployeeAction(
     // Hash default password (123456)
     const passwordHash = await bcrypt.hash('123456', 10);
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('employees')
       .insert({
         name: input.name,
@@ -203,9 +203,9 @@ export async function updateEmployeeAction(
   }
 
   try {
-    // Check if phone already exists for another employee
+        // Check if phone already exists for another employee
     if (input.phone) {
-      const { data: existing } = await supabase
+      const { data: existing } = await supabaseAdmin
         .from('employees')
         .select('id')
         .eq('phone', input.phone)
@@ -227,7 +227,7 @@ export async function updateEmployeeAction(
     if (input.department_id !== undefined) updateData.department_id = input.department_id;
     if (input.is_active !== undefined) updateData.is_active = input.is_active;
 
-    const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
       .from('employees')
       .update(updateData)
       .eq('id', employeeId)
@@ -264,7 +264,7 @@ export async function resetEmployeePasswordAction(
   try {
     const passwordHash = await bcrypt.hash('123456', 10);
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('employees')
       .update({
         password_hash: passwordHash,
@@ -302,7 +302,7 @@ export async function toggleEmployeeStatusAction(
 
   try {
     // Get current status
-    const { data: current, error: fetchError } = await supabase
+    const { data: current, error: fetchError } = await supabaseAdmin
       .from('employees')
       .select('is_active')
       .eq('id', employeeId)
@@ -312,7 +312,7 @@ export async function toggleEmployeeStatusAction(
       return { success: false, error: '员工不存在' };
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('employees')
       .update({
         is_active: !current.is_active,

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { toggleEmployeeStatusAction, resetEmployeePasswordAction } from '@/lib/employees/actions';
 import type { Employee, Department } from '@/types';
 
-interface EmployeeWithDepartment extends Employee {
+interface EmployeeWithDepartment extends Omit<Employee, 'department'> {
   department?: Department | null;
 }
 
