@@ -178,6 +178,12 @@ export async function updateSocialMediaPostAction(
     return { success: false, error: permission.error };
   }
 
+  // Input validation
+  const parsed = updateSocialMediaPostSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: formatZodError(parsed.error) };
+  }
+
   try {
     // Get current post to calculate reward if needed
     const { data: current } = await supabase
