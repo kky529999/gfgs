@@ -269,6 +269,72 @@ export interface Invoice {
   created_at: string;
 }
 
+export interface MonthlyDeliveryTarget {
+  id: string;
+  brand: string;
+  year_month: string;
+  target_panels: number;
+  base_salary: number;
+  bonus_for_meeting_target: number;
+  note: string | null;
+  created_by: string | null;
+  creator?: Employee;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MonthlyDeptRules {
+  id: string;
+  department: string;
+  year_month: string;
+  // 综合部奖励
+  admin_record_reward: number;
+  admin_grid_reward: number;
+  admin_close_reward: number;
+  admin_recruit_invite_reward: number;
+  admin_recruit_interview_reward: number;
+  admin_recruit_probation_reward: number;
+  admin_meeting_reward: number;
+  admin_video_reward: number;
+  admin_video_real_reward: number;
+  admin_live_reward: number;
+  // 综合部考核
+  admin_record_penalty_days: number;
+  admin_record_penalty_per_day: number;
+  admin_grid_penalty_days: number;
+  admin_grid_penalty_days_other: number;
+  admin_grid_penalty_per_day: number;
+  // 技术部奖励
+  tech_survey_reward: number;
+  tech_survey_reward_dealer: number;
+  tech_design_own_reward: number;
+  tech_design_outsource_reward: number;
+  tech_grid_reward: number;
+  tech_grid_reward_dealer: number;
+  tech_warehouse_reward: number;
+  // 技术部考核
+  tech_design_penalty_days: number;
+  tech_design_penalty_per_day: number;
+  tech_grid_penalty_days: number;
+  tech_grid_penalty_days_other: number;
+  tech_grid_penalty_per_day: number;
+  // 业务部奖励
+  biz_commission_per_panel: number;
+  biz_car_subsidy: number;
+  biz_bonus_target: number;
+  biz_bonus_if_met: number;
+  biz_supervisor_reward_per_panel: number;
+  // 业务部考核
+  biz_min_ship_penalty: number;
+  biz_min_ship_count: number;
+  // 通用字段
+  note: string | null;
+  created_by: string | null;
+  creator?: Employee;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface MonthlyTargetBonus {
   id: string;
   brand: string;
