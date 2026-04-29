@@ -8,7 +8,9 @@ import {
   advanceStageAction,
 } from '@/lib/customers/actions';
 import { getAuthInfoAction } from '@/lib/auth/actions';
+import { getInvoicesAction, createInvoiceAction, deleteInvoiceAction } from '@/lib/invoices/actions';
 import { STAGE_LABELS, STAGE_ORDER, CUSTOMER_TYPE_LABELS, type CustomerStage, type CustomerWithRelations } from '@/types/customer';
+import type { Invoice, BrandPolicySnapshot } from '@/types';
 
 export default function CustomerDetailPage({
   params,
@@ -21,7 +23,6 @@ export default function CustomerDetailPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'info' | 'stage' | 'finance'>('info');
 
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
@@ -32,6 +33,110 @@ export default function CustomerDetailPage({
   const [targetStage, setTargetStage] = useState<CustomerStage | null>(null);
   const [stageDate, setStageDate] = useState('');
   const [stageNote, setStageNote] = useState('');
+
+  // Invoice state
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [invoicesLoading, setInvoicesLoading] = useState(false);
+  const [showInvoiceForm, setShowInvoiceForm] = useState(false);
+  const [invoiceForm, setInvoiceForm] = useState({
+    invoice_no: '',
+    amount: '',
+    invoice_date: '',
+    note: '',
+  });
+
+  const loadInvoices = async () => {
+    setInvoicesLoading(true);
+    const result = await getInvoicesAction({ customer_id: id });
+    if (result.success && result.data) {
+      setInvoices(result.data);
+    }
+    setInvoicesLoading(false);
+  };
+
+  const handleCreateInvoice = async () => {
+    if (!invoiceForm.amount || !customer?.brand) return;
+    setSubmitting(true);
+    const result = await createInvoiceAction({
+      customer_id: id,
+      brand: customer.brand,
+      invoice_no: invoiceForm.invoice_no || undefined,
+      amount: parseFloat(invoiceForm.amount),
+      invoice_date: invoiceForm.invoice_date || undefined,
+      note: invoiceForm.note || undefined,
+    });
+    if (result.success) {
+      setShowInvoiceForm(false);
+      setInvoiceForm({ invoice_no: '', amount: '', invoice_date: '', note: '' });
+      await loadInvoices();
+    } else {
+      setError(result.error || '创建发票失败');
+    }
+    setSubmitting(false);
+  };
+
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    if (!confirm('确定要删除这条发票记录吗？')) return;
+    const result = await deleteInvoiceAction(invoiceId);
+    if (result.success) {
+      await loadInvoices();
+    } else {
+      setError(result.error || '删除发票失败');
+    }
+  };
+
+  // Profit calculation helpers (mirrored from profits/actions.ts)
+  const GRID_DEADLINE_DAYS: Record<string, number> = { '天合': 43, '天合光能': 43 };
+  const DEFAULT_GRID_DEADLINE_DAYS = 28;
+  const parseGridPenaltyPerDay = (penaltyStr: string | null | undefined): number => {
+    if (!penaltyStr) return 200;
+    const match = penaltyStr.match(/(\d+)(?:元\/天|元\/天逾期)?/);
+    return match ? parseInt(match[1], 10) : 200;
+  };
+  const calculateGridPenalty = (
+    shipDate: string | null | undefined,
+    gridDate: string | null | undefined,
+    brand: string | null | undefined,
+    gridPenaltyStr: string | null | undefined
+  ): number => {
+    if (!shipDate || !gridDate) return 0;
+    const ship = new Date(shipDate);
+    const grid = new Date(gridDate);
+    if (grid <= ship) return 0;
+    const diffTime = grid.getTime() - ship.getTime();
+    const overdueDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const deadline = GRID_DEADLINE_DAYS[brand || ''] || DEFAULT_GRID_DEADLINE_DAYS;
+    if (overdueDays <= deadline) return 0;
+    const penaltyPerDay = parseGridPenaltyPerDay(gridPenaltyStr);
+    const penaltyDays = overdueDays - deadline;
+    return penaltyDays * penaltyPerDay;
+  };
+
+  // Calculate profit for this customer
+  const calculateProfit = () => {
+    if (!customer) return null;
+    const policySnapshot = customer.policy_snapshot as BrandPolicySnapshot | null;
+    const panelCount = customer.panel_count || 0;
+    const installationFee = policySnapshot?.installation_fee || 0;
+    const comprehensiveSubsidy = policySnapshot?.comprehensive_subsidy || 0;
+    const channelFee = policySnapshot?.channel_fee || 0;
+    const inspectionReward = policySnapshot?.inspection_reward || 0;
+    const brandRevenue = (installationFee + comprehensiveSubsidy + channelFee) * panelCount + inspectionReward;
+    const laborCost = customer.construction_labor || 0;
+    const materialCost = customer.construction_material || 0;
+    const otherCost = customer.construction_other || 0;
+    const totalCost = laborCost + materialCost + otherCost;
+    const gridPenalty = calculateGridPenalty(
+      customer.ship_date,
+      customer.grid_date,
+      customer.brand,
+      policySnapshot?.grid_penalty
+    );
+    const netProfit = brandRevenue - totalCost - gridPenalty;
+    return { brandRevenue, totalCost, gridPenalty, netProfit };
+  };
+
+  const profit = calculateProfit();
 
   const loadCustomer = async () => {
     setLoading(true);
@@ -69,6 +174,7 @@ export default function CustomerDetailPage({
     } else {
       setError(result.error || '获取客户信息失败');
     }
+    await loadInvoices();
     setLoading(false);
   };
 
@@ -237,321 +343,576 @@ export default function CustomerDetailPage({
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="flex gap-8">
-          {(['info', 'stage', 'finance'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === tab
-                  ? 'border-indigo-600 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              {tab === 'info' ? '基本信息' : tab === 'stage' ? '阶段进度' : '财务信息'}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      {/* Tab Content */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        {activeTab === 'info' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">客户姓名</label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={editForm.name}
-                    onChange={(e) => handleEditChange('name', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  />
-                ) : (
-                  <p className="text-gray-900">{customer.name}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">联系电话</label>
-                {isEditing ? (
-                  <input
-                    type="tel"
-                    value={editForm.phone}
-                    onChange={(e) => handleEditChange('phone', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  />
-                ) : (
-                  <p className="text-gray-900">{customer.phone || '-'}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">地区</label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={editForm.area}
-                    onChange={(e) => handleEditChange('area', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  />
-                ) : (
-                  <p className="text-gray-900">{customer.area || '-'}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">乡镇/街道</label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={editForm.township}
-                    onChange={(e) => handleEditChange('township', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  />
-                ) : (
-                  <p className="text-gray-900">{customer.township || '-'}</p>
-                )}
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-500 mb-1">详细地址</label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={editForm.address}
-                    onChange={(e) => handleEditChange('address', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  />
-                ) : (
-                  <p className="text-gray-900">{customer.address || '-'}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">装机容量</label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={editForm.capacity}
-                    onChange={(e) => handleEditChange('capacity', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  />
-                ) : (
-                  <p className="text-gray-900">{customer.capacity || '-'}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">品牌</label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={editForm.brand}
-                    onChange={(e) => handleEditChange('brand', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  />
-                ) : (
-                  <p className="text-gray-900">{customer.brand || '-'}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">组件数量</label>
-                {isEditing ? (
-                  <input
-                    type="number"
-                    value={editForm.panel_count}
-                    onChange={(e) => handleEditChange('panel_count', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  />
-                ) : (
-                  <p className="text-gray-900">{customer.panel_count || '-'}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">房屋类型</label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={editForm.house_type}
-                    onChange={(e) => handleEditChange('house_type', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  />
-                ) : (
-                  <p className="text-gray-900">{customer.house_type || '-'}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">客户类型</label>
-                <p className="text-gray-900">{CUSTOMER_TYPE_LABELS[customer.customer_type]}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">业务归属</label>
-                <p className="text-gray-900">{customer.salesperson?.name || '未分配'}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">技术归属</label>
-                <p className="text-gray-900">{customer.tech_assigned?.name || '未分配'}</p>
-              </div>
+      {/* Top Row: 基本信息 + 财务信息 */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* 基本信息 */}
+        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">基本信息</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">客户姓名</label>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => handleEditChange('name', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                />
+              ) : (
+                <p className="text-gray-900">{customer.name}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">联系电话</label>
+              {isEditing ? (
+                <input
+                  type="tel"
+                  value={editForm.phone}
+                  onChange={(e) => handleEditChange('phone', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                />
+              ) : (
+                <p className="text-gray-900">{customer.phone || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">地区</label>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editForm.area}
+                  onChange={(e) => handleEditChange('area', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                />
+              ) : (
+                <p className="text-gray-900">{customer.area || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">乡镇/街道</label>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editForm.township}
+                  onChange={(e) => handleEditChange('township', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                />
+              ) : (
+                <p className="text-gray-900">{customer.township || '-'}</p>
+              )}
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-500 mb-1">详细地址</label>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editForm.address}
+                  onChange={(e) => handleEditChange('address', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                />
+              ) : (
+                <p className="text-gray-900">{customer.address || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">装机容量</label>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editForm.capacity}
+                  onChange={(e) => handleEditChange('capacity', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                />
+              ) : (
+                <p className="text-gray-900">{customer.capacity || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">品牌</label>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editForm.brand}
+                  onChange={(e) => handleEditChange('brand', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                />
+              ) : (
+                <p className="text-gray-900">{customer.brand || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">组件数量</label>
+              {isEditing ? (
+                <input
+                  type="number"
+                  value={editForm.panel_count}
+                  onChange={(e) => handleEditChange('panel_count', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                />
+              ) : (
+                <p className="text-gray-900">{customer.panel_count || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">房屋类型</label>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editForm.house_type}
+                  onChange={(e) => handleEditChange('house_type', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                />
+              ) : (
+                <p className="text-gray-900">{customer.house_type || '-'}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">客户类型</label>
+              <p className="text-gray-900">{CUSTOMER_TYPE_LABELS[customer.customer_type]}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">业务归属</label>
+              <p className="text-gray-900">{customer.salesperson?.name || '未分配'}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">技术归属</label>
+              <p className="text-gray-900">{customer.tech_assigned?.name || '未分配'}</p>
             </div>
           </div>
-        )}
+        </div>
 
-        {activeTab === 'stage' && (
-          <div className="space-y-6">
-            {/* Stage Progress Header */}
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-sm text-gray-500">当前阶段</span>
-                <p className="text-2xl font-bold text-indigo-600">{STAGE_LABELS[customer.current_stage]}</p>
-              </div>
-              <div className="text-right">
-                <span className="text-sm text-gray-500">进度</span>
-                <p className="text-2xl font-bold text-gray-900">{currentStageIndex + 1}/{STAGE_ORDER.length}</p>
-              </div>
+        {/* 财务信息 */}
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">财务信息</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">施工工费</label>
+              {isEditing ? (
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editForm.construction_labor}
+                  onChange={(e) => handleEditChange('construction_labor', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                />
+              ) : (
+                <p className="text-gray-900">
+                  {customer.construction_labor ? `¥${customer.construction_labor.toFixed(2)}` : '-'}
+                </p>
+              )}
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">施工材料费</label>
+              {isEditing ? (
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editForm.construction_material}
+                  onChange={(e) => handleEditChange('construction_material', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                />
+              ) : (
+                <p className="text-gray-900">
+                  {customer.construction_material ? `¥${customer.construction_material.toFixed(2)}` : '-'}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">其他费用</label>
+              {isEditing ? (
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editForm.construction_other}
+                  onChange={(e) => handleEditChange('construction_other', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                />
+              ) : (
+                <p className="text-gray-900">
+                  {customer.construction_other ? `¥${customer.construction_other.toFixed(2)}` : '-'}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">提成状态</label>
+              <p className="text-gray-900">{customer.commission_status}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">用户验收日期</label>
+              {isEditing ? (
+                <input
+                  type="date"
+                  value={editForm.user_acceptance_date}
+                  onChange={(e) => handleEditChange('user_acceptance_date', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                />
+              ) : (
+                <p className="text-gray-900">
+                  {customer.user_acceptance_date
+                    ? new Date(customer.user_acceptance_date).toLocaleDateString('zh-CN')
+                    : '-'}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">项目公司</label>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editForm.project_company}
+                  onChange={(e) => handleEditChange('project_company', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                />
+              ) : (
+                <p className="text-gray-900">{customer.project_company || '-'}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
 
-            {/* Stage Timeline */}
-            <div className="relative">
-              <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200" />
-              <div className="space-y-4">
-                {STAGE_ORDER.map((stage, index) => {
-                  const isCompleted = index < currentStageIndex;
-                  const isCurrent = index === currentStageIndex;
-                  const dateField = getStageDateField(stage);
-                  const stageDate = customer[dateField as keyof CustomerWithRelations] as string | null;
+      {/* 阶段进度 - 横向时间线 */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <span className="text-sm text-gray-500">当前阶段</span>
+            <p className="text-2xl font-bold text-indigo-600">{STAGE_LABELS[customer.current_stage]}</p>
+          </div>
+          <div className="text-right">
+            <span className="text-sm text-gray-500">进度</span>
+            <p className="text-2xl font-bold text-gray-900">{currentStageIndex + 1}/{STAGE_ORDER.length}</p>
+          </div>
+        </div>
 
-                  return (
-                    <div key={stage} className="relative flex items-start gap-4">
-                      <div
-                        className={`relative z-10 w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold ${
-                          isCompleted
-                            ? 'bg-green-500 text-white'
-                            : isCurrent
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-gray-200 text-gray-500'
-                        }`}
-                      >
-                        {isCompleted ? (
-                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        ) : (
-                          index + 1
-                        )}
-                      </div>
-                      <div className="flex-1 pb-8">
-                        <div className="flex items-center justify-between">
-                          <h4 className={`font-medium ${isCurrent ? 'text-indigo-600' : 'text-gray-900'}`}>
-                            {STAGE_LABELS[stage]}
-                          </h4>
-                          {canEdit && !isCompleted && (
-                            <button
-                              onClick={() => openStageModal(stage)}
-                              className="text-sm text-indigo-600 hover:text-indigo-800"
-                            >
-                              标记完成
-                            </button>
+        {/* Horizontal Stage Timeline */}
+        <div className="relative overflow-x-auto pb-4 -mx-2 px-2">
+          <div className="flex gap-2 min-w-max">
+            {STAGE_ORDER.map((stage, index) => {
+              const isCompleted = index < currentStageIndex;
+              const isCurrent = index === currentStageIndex;
+              const isPending = index > currentStageIndex;
+              const dateField = getStageDateField(stage);
+              const operatorField = getStageOperatorField(stage);
+              const stageDate = customer[dateField as keyof CustomerWithRelations] as string | null;
+              const stageOperator = customer[operatorField as keyof CustomerWithRelations] as { id: string; name: string; phone: string } | null;
+
+              return (
+                <div
+                  key={stage}
+                  className={`relative flex flex-col items-center w-36 ${isCurrent ? 'scale-105' : ''}`}
+                >
+                  {/* Connector line (before this node) */}
+                  {index > 0 && (
+                    <div
+                      className={`absolute top-6 -left-2 w-8 h-0.5 ${
+                        isCompleted || isCurrent ? 'bg-indigo-500' : 'bg-gray-200'
+                      }`}
+                    />
+                  )}
+
+                  {/* Stage number circle */}
+                  <div
+                    className={`relative z-10 w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
+                      isCompleted
+                        ? 'bg-green-500 text-white ring-4 ring-green-100'
+                        : isCurrent
+                        ? 'bg-indigo-600 text-white ring-4 ring-indigo-100 animate-pulse'
+                        : 'bg-gray-200 text-gray-500'
+                    }`}
+                  >
+                    {isCompleted ? (
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : (
+                      index + 1
+                    )}
+                  </div>
+
+                  {/* Stage label */}
+                  <h4 className={`mt-3 text-sm font-medium text-center ${
+                    isCurrent ? 'text-indigo-600' : isCompleted ? 'text-gray-900' : 'text-gray-400'
+                  }`}>
+                    {STAGE_LABELS[stage]}
+                  </h4>
+
+                  {/* Date input/display */}
+                  <div className="mt-2 w-full">
+                    {canEdit ? (
+                      isCompleted ? (
+                        // Show date and operator for completed stages
+                        <div className="text-center">
+                          <p className="text-xs text-gray-500">
+                            {stageDate
+                              ? new Date(stageDate).toLocaleDateString('zh-CN')
+                              : '已完成'}
+                          </p>
+                          {stageOperator && (
+                            <p className="text-xs text-green-600 mt-1">
+                              {stageOperator.name}
+                            </p>
                           )}
                         </div>
-                        <p className="text-sm text-gray-500 mt-1">
+                      ) : isCurrent ? (
+                        // Editable date for current stage
+                        <div className="text-center">
+                          <input
+                            type="date"
+                            value={stageDate || new Date().toISOString().split('T')[0]}
+                            onChange={async (e) => {
+                              const result = await advanceStageAction({
+                                customer_id: id,
+                                to_stage: stage,
+                                date: e.target.value,
+                              });
+                              if (result.success) {
+                                await loadCustomer();
+                              }
+                            }}
+                            className="w-full px-2 py-1 text-xs border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 text-center"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">
+                            点击日期标记完成
+                          </p>
+                        </div>
+                      ) : (
+                        // Future stages - just show pending
+                        <p className="text-xs text-center text-gray-400">待处理</p>
+                      )
+                    ) : (
+                      // Non-editable view
+                      <div className="text-center">
+                        <p className="text-xs text-gray-500">
                           {stageDate
                             ? new Date(stageDate).toLocaleDateString('zh-CN')
                             : isCompleted
                             ? '已完成'
                             : '待处理'}
                         </p>
+                        {stageOperator && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            {stageOperator.name}
+                          </p>
+                        )}
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Stage detail cards */}
+        <div className="mt-6 border-t pt-6">
+          <h3 className="text-sm font-medium text-gray-700 mb-3">阶段详情</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {STAGE_ORDER.map((stage, index) => {
+              const isCompleted = index < currentStageIndex;
+              const isCurrent = index === currentStageIndex;
+              const dateField = getStageDateField(stage);
+              const operatorField = getStageOperatorField(stage);
+              const stageDate = customer[dateField as keyof CustomerWithRelations] as string | null;
+              const stageOperator = customer[operatorField as keyof CustomerWithRelations] as { id: string; name: string; phone: string } | null;
+
+              return (
+                <div
+                  key={stage}
+                  className={`p-3 rounded-lg border ${
+                    isCompleted
+                      ? 'bg-green-50 border-green-200'
+                      : isCurrent
+                      ? 'bg-indigo-50 border-indigo-200'
+                      : 'bg-gray-50 border-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
+                      isCompleted
+                        ? 'bg-green-500 text-white'
+                        : isCurrent
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-gray-300 text-gray-600'
+                    }`}>
+                      {isCompleted ? (
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        index + 1
+                      )}
+                    </span>
+                    <span className={`text-sm font-medium ${
+                      isCurrent ? 'text-indigo-700' : 'text-gray-700'
+                    }`}>
+                      {STAGE_LABELS[stage]}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    {stageDate
+                      ? new Date(stageDate).toLocaleDateString('zh-CN')
+                      : isCompleted
+                      ? '已完成'
+                      : '待处理'}
+                  </p>
+                  {stageOperator && (
+                    <p className="text-xs text-green-600 mt-1">
+                      负责人: {stageOperator.name}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* 利润计算 */}
+      {profit && (
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">利润计算</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-500">品牌收入</p>
+              <p className="text-2xl font-bold text-green-600">¥{profit.brandRevenue.toFixed(2)}</p>
             </div>
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-500">总成本</p>
+              <p className="text-2xl font-bold text-red-600">¥{profit.totalCost.toFixed(2)}</p>
+            </div>
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-500">逾期罚金</p>
+              <p className="text-2xl font-bold text-orange-600">¥{profit.gridPenalty.toFixed(2)}</p>
+            </div>
+            <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+              <p className="text-sm text-gray-500">净利润</p>
+              <p className={`text-2xl font-bold ${profit.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                ¥{profit.netProfit.toFixed(2)}
+              </p>
+            </div>
+          </div>
+          {customer?.policy_snapshot && (
+            <div className="mt-4 p-3 bg-amber-50 rounded-lg text-sm text-amber-800">
+              <p className="font-medium">政策快照已锁定</p>
+              <p className="text-amber-700 mt-1">
+                安装服务费: ¥{((customer.policy_snapshot as unknown) as BrandPolicySnapshot).installation_fee}/板 |
+                综合补贴: ¥{((customer.policy_snapshot as unknown) as BrandPolicySnapshot).comprehensive_subsidy}/板 |
+                渠道提点: ¥{((customer.policy_snapshot as unknown) as BrandPolicySnapshot).channel_fee}/板
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 发票列表 */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">发票记录</h2>
+          {canEdit && (
+            <button
+              onClick={() => setShowInvoiceForm(true)}
+              className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            >
+              添加发票
+            </button>
+          )}
+        </div>
+
+        {invoicesLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600" />
+          </div>
+        ) : invoices.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            暂无发票记录
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {invoices.map((invoice) => (
+              <div key={invoice.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="font-medium text-gray-900">
+                    {invoice.invoice_no || '无票号'}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    ¥{invoice.amount.toFixed(2)} | {invoice.invoice_date ? new Date(invoice.invoice_date).toLocaleDateString('zh-CN') : '无日期'}
+                    {invoice.note && ` | ${invoice.note}`}
+                  </p>
+                </div>
+                {canEdit && (
+                  <button
+                    onClick={() => handleDeleteInvoice(invoice.id)}
+                    className="text-red-500 hover:text-red-700 text-sm"
+                  >
+                    删除
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
         )}
 
-        {activeTab === 'finance' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Invoice Form Modal */}
+        {showInvoiceForm && (
+          <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+            <h3 className="text-sm font-medium text-gray-700 mb-3">添加发票</h3>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">施工工费</label>
-                {isEditing ? (
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={editForm.construction_labor}
-                    onChange={(e) => handleEditChange('construction_labor', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  />
-                ) : (
-                  <p className="text-gray-900">
-                    {customer.construction_labor ? `¥${customer.construction_labor.toFixed(2)}` : '-'}
-                  </p>
-                )}
+                <label className="block text-xs text-gray-500 mb-1">发票号码</label>
+                <input
+                  type="text"
+                  value={invoiceForm.invoice_no}
+                  onChange={(e) => setInvoiceForm((p) => ({ ...p, invoice_no: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  placeholder="可选"
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">施工材料费</label>
-                {isEditing ? (
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={editForm.construction_material}
-                    onChange={(e) => handleEditChange('construction_material', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  />
-                ) : (
-                  <p className="text-gray-900">
-                    {customer.construction_material ? `¥${customer.construction_material.toFixed(2)}` : '-'}
-                  </p>
-                )}
+                <label className="block text-xs text-gray-500 mb-1">金额 (元)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={invoiceForm.amount}
+                  onChange={(e) => setInvoiceForm((p) => ({ ...p, amount: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  placeholder="必填"
+                  required
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">其他费用</label>
-                {isEditing ? (
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={editForm.construction_other}
-                    onChange={(e) => handleEditChange('construction_other', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  />
-                ) : (
-                  <p className="text-gray-900">
-                    {customer.construction_other ? `¥${customer.construction_other.toFixed(2)}` : '-'}
-                  </p>
-                )}
+                <label className="block text-xs text-gray-500 mb-1">开票日期</label>
+                <input
+                  type="date"
+                  value={invoiceForm.invoice_date}
+                  onChange={(e) => setInvoiceForm((p) => ({ ...p, invoice_date: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">提成状态</label>
-                <p className="text-gray-900">{customer.commission_status}</p>
+              <div className="col-span-2">
+                <label className="block text-xs text-gray-500 mb-1">备注</label>
+                <input
+                  type="text"
+                  value={invoiceForm.note}
+                  onChange={(e) => setInvoiceForm((p) => ({ ...p, note: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  placeholder="可选"
+                />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">用户验收日期</label>
-                {isEditing ? (
-                  <input
-                    type="date"
-                    value={editForm.user_acceptance_date}
-                    onChange={(e) => handleEditChange('user_acceptance_date', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  />
-                ) : (
-                  <p className="text-gray-900">
-                    {customer.user_acceptance_date
-                      ? new Date(customer.user_acceptance_date).toLocaleDateString('zh-CN')
-                      : '-'}
-                  </p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">项目公司</label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={editForm.project_company}
-                    onChange={(e) => handleEditChange('project_company', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  />
-                ) : (
-                  <p className="text-gray-900">{customer.project_company || '-'}</p>
-                )}
-              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setShowInvoiceForm(false)}
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleCreateInvoice}
+                disabled={submitting || !invoiceForm.amount}
+                className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {submitting ? '保存中...' : '保存'}
+              </button>
             </div>
           </div>
         )}
@@ -624,6 +985,20 @@ function getStageDateField(stage: CustomerStage): string {
     ship: 'ship_date',
     grid: 'grid_date',
     close: 'close_date',
+  };
+  return fields[stage];
+}
+
+function getStageOperatorField(stage: CustomerStage): string {
+  const fields: Record<CustomerStage, string> = {
+    survey: 'survey_operator',
+    design: 'design_operator',
+    filing: 'filing_operator',
+    record: 'record_operator',
+    grid_materials: 'grid_materials_operator',
+    ship: 'ship_operator',
+    grid: 'grid_operator',
+    close: 'close_operator',
   };
   return fields[stage];
 }

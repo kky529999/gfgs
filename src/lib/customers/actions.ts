@@ -82,7 +82,15 @@ export async function getCustomerAction(
         `
         *,
         salesperson:employees!salesperson_id(id, name, phone),
-        tech_assigned:employees!tech_assigned_id(id, name, phone)
+        tech_assigned:employees!tech_assigned_id(id, name, phone),
+        survey_operator:employees!survey_operator_id(id, name, phone),
+        design_operator:employees!design_operator_id(id, name, phone),
+        filing_operator:employees!filing_operator_id(id, name, phone),
+        record_operator:employees!record_operator_id(id, name, phone),
+        grid_materials_operator:employees!grid_materials_operator_id(id, name, phone),
+        ship_operator:employees!ship_operator_id(id, name, phone),
+        grid_operator:employees!grid_operator_id(id, name, phone),
+        close_operator:employees!close_operator_id(id, name, phone)
       `
       )
       .eq('id', customerId)
@@ -280,6 +288,7 @@ export async function advanceStageAction(
 
     // Get the date field for this stage
     const stageDateField = getStageDateField(input.to_stage);
+    const stageOperatorField = getStageOperatorField(input.to_stage);
     const updateData: Record<string, unknown> = {
       current_stage: input.to_stage,
       stage_completed_at: new Date().toISOString(),
@@ -290,6 +299,11 @@ export async function advanceStageAction(
       updateData[stageDateField] = input.date;
     } else if (stageDateField) {
       updateData[stageDateField] = new Date().toISOString().split('T')[0];
+    }
+
+    // Set the operator for this stage
+    if (stageOperatorField) {
+      updateData[stageOperatorField] = auth.user_id;
     }
 
     // Update customer (use supabaseAdmin for consistency)
@@ -417,4 +431,19 @@ function getStageDateField(stage: CustomerStage): string | null {
     close: 'close_date',
   };
   return stageDateFields[stage];
+}
+
+// Helper function to get operator field name for stage
+function getStageOperatorField(stage: CustomerStage): string | null {
+  const stageOperatorFields: Record<CustomerStage, string | null> = {
+    survey: 'survey_operator_id',
+    design: 'design_operator_id',
+    filing: 'filing_operator_id',
+    record: 'record_operator_id',
+    grid_materials: 'grid_materials_operator_id',
+    ship: 'ship_operator_id',
+    grid: 'grid_operator_id',
+    close: 'close_operator_id',
+  };
+  return stageOperatorFields[stage];
 }

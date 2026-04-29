@@ -1,6 +1,7 @@
 import { getAuthCookie } from '@/lib/auth/cookie';
 import { supabaseAdmin } from '@/lib/supabase';
 import Link from 'next/link';
+import StageHover from './_components/StageHover';
 
 interface OverdueWarning {
   id: string;
@@ -14,9 +15,18 @@ interface OverdueWarning {
 }
 
 interface AdminMetrics {
-  filingOverdue: Array<{ id: string; name: string; phone: string; daysSinceSurvey: number }>;
+  filingOverdue: Array<{ id: string; name: string; phone: string; surveyDate: string; daysSinceSurvey: number }>;
   gridOverdue: Array<{ id: string; name: string; phone: string; brand: string; daysSinceShip: number }>;
   closePending: Array<{ id: string; name: string; phone: string; gridDate: string }>;
+}
+
+// 新增：每个阶段客户信息
+interface StageCustomer {
+  id: string;
+  name: string;
+  phone: string;
+  startDate: string;
+  daysElapsed: number;
 }
 
 interface BusinessMetrics {
@@ -90,7 +100,7 @@ async function getAdminMetrics(): Promise<AdminMetrics | null> {
         const surveyDate = new Date(c.survey_date);
         const daysSinceSurvey = Math.floor((today.getTime() - surveyDate.getTime()) / (1000 * 60 * 60 * 24));
         if (daysSinceSurvey > 7) {
-          filingOverdue.push({ id: c.id, name: c.name, phone: c.phone || '', daysSinceSurvey });
+          filingOverdue.push({ id: c.id, name: c.name, phone: c.phone || '', surveyDate: c.survey_date, daysSinceSurvey });
         }
       }
     }
@@ -263,39 +273,59 @@ async function getDashboardData() {
   const auth = await getAuthCookie();
   if (!auth) return null;
 
-  // 根据角色设置查询条件
-  let customerQuery = supabaseAdmin.from('customers').select('*', { count: 'exact', head: true });
+  const today = new Date();
+
+  // 根据角色设置查询条件 - 获取完整数据用于去重统计
+  let baseQuery = supabaseAdmin.from('customers').select('name, current_stage, grid_date, close_date');
 
   switch (auth.role) {
     case 'business':
-      customerQuery = customerQuery.eq('salesperson_id', auth.user_id);
+      baseQuery = baseQuery.eq('salesperson_id', auth.user_id);
       break;
     case 'tech':
-      customerQuery = customerQuery.eq('tech_assigned_id', auth.user_id);
+      baseQuery = baseQuery.eq('tech_assigned_id', auth.user_id);
       break;
     // admin 和 gm 可以看到全部
   }
 
-  const { count: totalCustomers } = await customerQuery;
+  const { data: allCustomers } = await baseQuery;
 
-  // 在途客户（未闭环）
-  const { count: inProgress } = await customerQuery
-    .neq('current_stage', 'close');
+  // 按名字去重统计
+  const uniqueNames = new Set<string>();
+  const uniqueInProgressNames = new Set<string>();
+  const uniqueGridThisMonthNames = new Set<string>();
+  const uniqueCloseThisMonthNames = new Set<string>();
 
-  // 本月并网
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-  const { count: gridThisMonth } = await customerQuery
-    .gte('grid_date', startOfMonth)
-    .not('grid_date', 'is', null);
+  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
 
-  // 本月闭环
-  const { count: closeThisMonth } = await customerQuery
-    .gte('close_date', startOfMonth)
-    .not('close_date', 'is', null);
+  allCustomers?.forEach((c) => {
+    if (c.name) {
+      uniqueNames.add(c.name);
 
-  // 阶段统计（应用角色过滤）
-  let stageQuery = supabaseAdmin.from('customers').select('current_stage');
+      // 在途客户（未闭环）
+      if (c.current_stage !== 'close') {
+        uniqueInProgressNames.add(c.name);
+      }
+
+      // 本月并网（按名字去重）
+      if (c.grid_date && c.grid_date >= startOfMonth) {
+        uniqueGridThisMonthNames.add(c.name);
+      }
+
+      // 本月闭环（按名字去重）
+      if (c.close_date && c.close_date >= startOfMonth) {
+        uniqueCloseThisMonthNames.add(c.name);
+      }
+    }
+  });
+
+  const totalCustomers = uniqueNames.size;
+  const inProgress = uniqueInProgressNames.size;
+  const gridThisMonth = uniqueGridThisMonthNames.size;
+  const closeThisMonth = uniqueCloseThisMonthNames.size;
+
+  // 阶段统计（应用角色过滤，按名字去重）
+  let stageQuery = supabaseAdmin.from('customers').select('name, current_stage');
 
   switch (auth.role) {
     case 'business':
@@ -304,14 +334,72 @@ async function getDashboardData() {
     case 'tech':
       stageQuery = stageQuery.eq('tech_assigned_id', auth.user_id);
       break;
-    // admin 和 gm 可以看到全部
   }
 
   const { data: stageData } = await stageQuery;
 
   const stageCounts: Record<string, number> = {};
+  // 按名字去重统计每个阶段的客户数
+  const stageNameSets: Record<string, Set<string>> = {
+    survey: new Set(), design: new Set(), filing: new Set(), record: new Set(),
+    grid_materials: new Set(), ship: new Set(), grid: new Set(), close: new Set()
+  };
+
   stageData?.forEach((c) => {
-    stageCounts[c.current_stage] = (stageCounts[c.current_stage] || 0) + 1;
+    const stage = c.current_stage;
+    if (stage && stageNameSets[stage] !== undefined) {
+      if (c.name) {
+        stageNameSets[stage].add(c.name);
+      }
+    }
+  });
+
+  for (const stage of Object.keys(stageNameSets)) {
+    stageCounts[stage] = stageNameSets[stage].size;
+  }
+
+  // 获取每个阶段的客户详情（用于悬停显示）
+  let stageCustomersQuery = supabaseAdmin
+    .from('customers')
+    .select('id, name, phone, current_stage, survey_date, design_date, filing_date, record_date, grid_materials_date, ship_date, grid_date, close_date');
+
+  switch (auth.role) {
+    case 'business':
+      stageCustomersQuery = stageCustomersQuery.eq('salesperson_id', auth.user_id);
+      break;
+    case 'tech':
+      stageCustomersQuery = stageCustomersQuery.eq('tech_assigned_id', auth.user_id);
+      break;
+  }
+
+  const { data: stageCustomersData } = await stageCustomersQuery;
+
+  // 按阶段分组客户，计算已过天数
+  const stageCustomers: Record<string, StageCustomer[]> = {};
+  const stages = ['survey', 'design', 'filing', 'record', 'grid_materials', 'ship', 'grid', 'close'];
+
+  for (const stage of stages) {
+    stageCustomers[stage] = [];
+  }
+
+  stageCustomersData?.forEach((c) => {
+    const stage = c.current_stage;
+    if (!stage || !stages.includes(stage)) return;
+
+    const stageDateField = getStageDateField(stage);
+    const stageDate = c[stageDateField as keyof typeof c] as string | null;
+    if (!stageDate) return;
+
+    const startDate = new Date(stageDate);
+    const daysElapsed = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    stageCustomers[stage].push({
+      id: c.id,
+      name: c.name,
+      phone: c.phone || '',
+      startDate: stageDate,
+      daysElapsed,
+    });
   });
 
   return {
@@ -320,7 +408,23 @@ async function getDashboardData() {
     gridThisMonth: gridThisMonth || 0,
     closeThisMonth: closeThisMonth || 0,
     stageCounts,
+    stageCustomers,
   };
+}
+
+// 获取阶段对应的日期字段
+function getStageDateField(stage: string): string {
+  const dateFields: Record<string, string> = {
+    survey: 'survey_date',
+    design: 'design_date',
+    filing: 'filing_date',
+    record: 'record_date',
+    grid_materials: 'grid_materials_date',
+    ship: 'ship_date',
+    grid: 'grid_date',
+    close: 'close_date',
+  };
+  return dateFields[stage] || 'created_at';
 }
 
 async function getRecentCustomers() {
@@ -363,6 +467,8 @@ export default async function DashboardPage() {
   const adminMetrics = await getAdminMetrics();
   const businessMetrics = await getBusinessMetrics();
   const techMetrics = await getTechMetrics();
+
+  const currentMonth = new Date().getMonth() + 1;
 
   const roleLabels: Record<string, string> = {
     admin: '综合管理部',
@@ -443,19 +549,19 @@ export default async function DashboardPage() {
           </p>
         </div>
         <div className="bg-white rounded-xl p-5 border border-gray-100 hover:border-gray-200 transition-all duration-200 hover:shadow-subtle">
-          <p className="text-xs text-gray-500 uppercase tracking-wide">在途客户</p>
+          <p className="text-xs text-gray-500 uppercase tracking-wide">进行中客户</p>
           <p className="text-3xl font-semibold text-blue-600 mt-1.5 tracking-tight">
             {data?.inProgress || 0}
           </p>
         </div>
         <div className="bg-white rounded-xl p-5 border border-gray-100 hover:border-gray-200 transition-all duration-200 hover:shadow-subtle">
-          <p className="text-xs text-gray-500 uppercase tracking-wide">本月并网</p>
+          <p className="text-xs text-gray-500 uppercase tracking-wide">{currentMonth}月并网</p>
           <p className="text-3xl font-semibold text-green-600 mt-1.5 tracking-tight">
             {data?.gridThisMonth || 0}
           </p>
         </div>
         <div className="bg-white rounded-xl p-5 border border-gray-100 hover:border-gray-200 transition-all duration-200 hover:shadow-subtle">
-          <p className="text-xs text-gray-500 uppercase tracking-wide">本月闭环</p>
+          <p className="text-xs text-gray-500 uppercase tracking-wide">{currentMonth}月闭环</p>
           <p className="text-3xl font-semibold text-purple-600 mt-1.5 tracking-tight">
             {data?.closeThisMonth || 0}
           </p>
@@ -467,14 +573,13 @@ export default async function DashboardPage() {
         <h2 className="text-lg font-semibold text-gray-900 mb-4">8阶段进度</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
           {stages.map((stage) => (
-            <div key={stage} className="text-center">
-              <div className="text-2xl font-bold text-gray-900">
-                {data?.stageCounts[stage] || 0}
-              </div>
-              <div className="text-sm text-gray-500 mt-1">
-                {stageLabels[stage]}
-              </div>
-            </div>
+            <StageHover
+              key={stage}
+              stage={stage}
+              stageLabel={stageLabels[stage]}
+              count={data?.stageCounts[stage] || 0}
+              customers={data?.stageCustomers[stage] || []}
+            />
           ))}
         </div>
 
@@ -519,16 +624,20 @@ export default async function DashboardPage() {
               <p className="text-gray-500 text-sm">暂无超时客户</p>
             ) : (
               <div className="space-y-2">
-                {adminMetrics.filingOverdue.slice(0, 3).map((item) => (
-                  <Link
-                    key={item.id}
-                    href={`/customers/${item.id}`}
-                    className="block p-2 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="font-medium text-gray-900 text-sm">{item.name}</div>
-                    <div className="text-xs text-gray-500">已过 {item.daysSinceSurvey} 天</div>
-                  </Link>
-                ))}
+                {adminMetrics.filingOverdue.slice(0, 3).map((item) => {
+                  const surveyDateParts = item.surveyDate.split('-');
+                  const surveyDateFormatted = `${parseInt(surveyDateParts[1])}月${parseInt(surveyDateParts[2])}日开始，已过${item.daysSinceSurvey}天`;
+                  return (
+                    <Link
+                      key={item.id}
+                      href={`/customers/${item.id}`}
+                      className="block p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="font-medium text-gray-900 text-sm">{item.name}</div>
+                      <div className="text-xs text-gray-500">{surveyDateFormatted}</div>
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </div>

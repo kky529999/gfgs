@@ -3,8 +3,57 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import { getAuthCookie } from '@/lib/auth/cookie';
 import { refreshSessionAction } from '@/lib/auth/actions';
-import type { Customer, BrandPolicy } from '@/types';
+import type { Customer, BrandPolicy, BrandPolicySnapshot } from '@/types';
 import type { ProfitCalculation } from '@/types';
+
+// Grid deadline in days by brand
+const GRID_DEADLINE_DAYS: Record<string, number> = {
+  '天合': 43,
+  '天合光能': 43,
+  // Add more brand-specific deadlines as needed
+};
+
+// Default deadline for brands not in the map
+const DEFAULT_GRID_DEADLINE_DAYS = 28;
+
+// Parse grid penalty from policy string (e.g., "100元/天" -> 100)
+function parseGridPenaltyPerDay(penaltyStr: string | null | undefined): number {
+  if (!penaltyStr) return 200; // Default 200元/天
+  const match = penaltyStr.match(/(\d+)(?:元\/天|元\/天逾期)?/);
+  return match ? parseInt(match[1], 10) : 200;
+}
+
+// Calculate grid penalty based on actual dates
+function calculateGridPenalty(
+  shipDate: string | null | undefined,
+  gridDate: string | null | undefined,
+  brand: string | null | undefined,
+  gridPenaltyStr: string | null | undefined
+): number {
+  if (!shipDate || !gridDate) return 0;
+
+  const ship = new Date(shipDate);
+  const grid = new Date(gridDate);
+
+  // If grid_date is before ship_date, no penalty
+  if (grid <= ship) return 0;
+
+  // Calculate overdue days
+  const diffTime = grid.getTime() - ship.getTime();
+  const overdueDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+  // Get deadline for this brand
+  const brandName = brand || '';
+  const deadline = GRID_DEADLINE_DAYS[brandName] || DEFAULT_GRID_DEADLINE_DAYS;
+
+  // If within deadline, no penalty
+  if (overdueDays <= deadline) return 0;
+
+  // Calculate penalty for overdue days
+  const penaltyPerDay = parseGridPenaltyPerDay(gridPenaltyStr);
+  const penaltyDays = overdueDays - deadline;
+  return penaltyDays * penaltyPerDay;
+}
 
 // Helper to check admin/gm permission
 async function checkAdminPermission(): Promise<{ allowed: boolean; error?: string }> {
@@ -50,6 +99,8 @@ export async function getProfitCalculationsAction(filters?: {
         policy_snapshot,
         current_stage,
         close_date,
+        ship_date,
+        grid_date,
         construction_labor,
         construction_material,
         construction_other
@@ -75,7 +126,7 @@ export async function getProfitCalculationsAction(filters?: {
       return { success: true, data: [] };
     }
 
-    // Get active brand policies for reference
+    // Get active brand policies for reference (fallback if no snapshot)
     const { data: policies } = await supabaseAdmin
       .from('brand_policies')
       .select('*')
@@ -98,12 +149,23 @@ export async function getProfitCalculationsAction(filters?: {
 
     // Calculate profits for each customer
     const profitCalculations: ProfitCalculation[] = customers.map((customer) => {
-      const policy = customer.policy_snapshot || policyMap.get(customer.brand || '');
+      // Prefer policy_snapshot, fallback to active policy
+      const policySnapshot = customer.policy_snapshot as BrandPolicySnapshot | null;
+      const activePolicy = policyMap.get(customer.brand || '');
+      const policy = policySnapshot || activePolicy;
+
       const panelCount = customer.panel_count || 0;
 
-      // Revenue: channel_fee (from policy) * panel_count
+      // Revenue formula:
+      // 品牌收入 = (安装服务费 + 综合补贴 + 渠道提点) × 板数 + 验仓奖励
+      const installationFee = policy?.installation_fee || 0;
+      const comprehensiveSubsidy = policy?.comprehensive_subsidy || 0;
       const channelFee = policy?.channel_fee || 0;
-      const brandRevenue = channelFee * panelCount;
+      const inspectionReward = policy?.inspection_reward || 0;
+
+      const brandRevenue =
+        (installationFee + comprehensiveSubsidy + channelFee) * panelCount +
+        inspectionReward;
 
       // Cost calculation
       const laborCost = customer.construction_labor || 0;
@@ -118,14 +180,16 @@ export async function getProfitCalculationsAction(filters?: {
         dealerFee = feePerPanel * panelCount;
       }
 
-      // Grid penalty (simplified - parse from policy if exists)
-      let gridPenalty = 0;
-      if (policy?.grid_penalty && customer.close_date) {
-        const penaltyMatch = policy.grid_penalty.match(/(\d+)/);
-        if (penaltyMatch) {
-          gridPenalty = parseInt(penaltyMatch[1], 10) * 100; // Convert to yuan
-        }
-      }
+      // Grid penalty based on actual dates (天合43天/其他28天)
+      const gridPenalty = calculateGridPenalty(
+        customer.ship_date,
+        customer.grid_date,
+        customer.brand,
+        policy?.grid_penalty
+      );
+
+      // Monthly target bonus (simplified - would need monthly targets logic)
+      const monthlyTargetBonus = 0;
 
       // Net profit calculation
       const netProfit = brandRevenue - totalCost - dealerFee - gridPenalty;
@@ -133,7 +197,7 @@ export async function getProfitCalculationsAction(filters?: {
       return {
         customer_id: customer.id,
         brand: customer.brand || '未知',
-        city: policy?.city || null,
+        city: (policySnapshot?.city || policy?.city) || null,
         panel_count: panelCount,
         customer_type: customer.customer_type,
         dealer_id: customer.dealer_id,
@@ -141,7 +205,7 @@ export async function getProfitCalculationsAction(filters?: {
         total_cost: totalCost,
         dealer_fee: dealerFee,
         grid_penalty: gridPenalty,
-        monthly_target_bonus: 0, // Simplified for now
+        monthly_target_bonus: monthlyTargetBonus,
         net_profit: netProfit,
       };
     });

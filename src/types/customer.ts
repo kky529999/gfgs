@@ -67,6 +67,7 @@ export interface Customer {
   house_type: string | null;
   customer_type: CustomerType;
   dealer_id: string | null;
+  // 8阶段日期
   survey_date: string | null;
   design_date: string | null;
   filing_date: string | null;
@@ -75,6 +76,16 @@ export interface Customer {
   ship_date: string | null;
   grid_date: string | null;
   close_date: string | null;
+  // 8阶段负责人
+  survey_operator_id: string | null;
+  design_operator_id: string | null;
+  filing_operator_id: string | null;
+  record_operator_id: string | null;
+  grid_materials_operator_id: string | null;
+  ship_operator_id: string | null;
+  grid_operator_id: string | null;
+  close_operator_id: string | null;
+  // 其他字段
   user_acceptance_date: string | null;
   project_company: string | null;
   salesperson_id: string | null;
@@ -101,6 +112,15 @@ export interface CustomerWithRelations extends Customer {
   salesperson?: { id: string; name: string; phone: string } | null;
   tech_assigned?: { id: string; name: string; phone: string } | null;
   dealer?: { id: string; name: string } | null;
+  // 阶段负责人
+  survey_operator?: { id: string; name: string; phone: string } | null;
+  design_operator?: { id: string; name: string; phone: string } | null;
+  filing_operator?: { id: string; name: string; phone: string } | null;
+  record_operator?: { id: string; name: string; phone: string } | null;
+  grid_materials_operator?: { id: string; name: string; phone: string } | null;
+  ship_operator?: { id: string; name: string; phone: string } | null;
+  grid_operator?: { id: string; name: string; phone: string } | null;
+  close_operator?: { id: string; name: string; phone: string } | null;
 }
 
 // Input types for creating/updating customers
@@ -144,6 +164,16 @@ export interface UpdateCustomerInput {
   ship_date?: string;
   grid_date?: string;
   close_date?: string;
+  // 阶段负责人
+  survey_operator_id?: string;
+  design_operator_id?: string;
+  filing_operator_id?: string;
+  record_operator_id?: string;
+  grid_materials_operator_id?: string;
+  ship_operator_id?: string;
+  grid_operator_id?: string;
+  close_operator_id?: string;
+  // 其他字段
   user_acceptance_date?: string;
   project_company?: string;
   current_stage?: CustomerStage;
