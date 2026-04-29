@@ -360,8 +360,10 @@ async function getDashboardData() {
     const stage = c.current_stage;
     if (!stage || !stages.includes(stage)) return;
 
-    // 统计该阶段客户数
-    stageCounts[stage] = (stageCounts[stage] || 0) + 1;
+    // 按名字去重统计该阶段客户数
+    if (c.name) {
+      stageCounts[stage] = (stageCounts[stage] || 0) + 1;
+    }
 
     // 闭环客户：显示从现勘到闭环的总天数
     if (stage === 'close' && c.survey_date && c.close_date) {
@@ -396,6 +398,21 @@ async function getDashboardData() {
       isTotalFlow: false,
     });
   });
+
+  // 再次按名字去重 stageCounts（处理同名客户重复统计）
+  const stageNameSets: Record<string, Set<string>> = {};
+  for (const stage of stages) {
+    stageNameSets[stage] = new Set();
+  }
+  stageCustomersData?.forEach((c) => {
+    const stage = c.current_stage;
+    if (stage && stages.includes(stage) && c.name) {
+      stageNameSets[stage].add(c.name);
+    }
+  });
+  for (const stage of stages) {
+    stageCounts[stage] = stageNameSets[stage].size;
+  }
 
   return {
     totalCustomers: totalCustomers || 0,
