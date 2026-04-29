@@ -85,6 +85,56 @@ export default function CustomerDetailPage({
     }
   };
 
+  const handleSaveVoucher = async () => {
+    setSubmitting(true);
+    const result = await updateCustomerAction(id, {
+      entry_voucher_url: voucherUrl || undefined,
+    });
+    if (result.success) {
+      await loadCustomer();
+      alert('进场凭证已保存');
+    } else {
+      setError(result.error || '保存失败');
+    }
+    setSubmitting(false);
+  };
+
+  const handleSaveClosingVideo = async () => {
+    setSubmitting(true);
+    const result = await updateCustomerAction(id, {
+      closing_video_url: closingVideoUrl || undefined,
+    });
+    if (result.success) {
+      await loadCustomer();
+      alert('满意视频已保存');
+    } else {
+      setError(result.error || '保存失败');
+    }
+    setSubmitting(false);
+  };
+
+  // Calculate installment status
+  const getInstallmentStatus = () => {
+    if (!customer) return null;
+    const hasEntryVoucher = !!customer.entry_voucher_url;
+    const hasClosingVideo = !!customer.closing_video_url;
+    const isClosed = customer.current_stage === 'close';
+
+    // First installment (50%): when construction team enters (entry voucher uploaded)
+    // Second installment (50%): when closed (closing video uploaded)
+    const firstPaid = hasEntryVoucher;
+    const secondPaid = hasClosingVideo && isClosed;
+
+    return {
+      hasEntryVoucher,
+      hasClosingVideo,
+      isClosed,
+      firstPaid,
+      secondPaid,
+      totalProgress: firstPaid ? (secondPaid ? 100 : 50) : 0,
+    };
+  };
+
   // Profit calculation helpers (mirrored from profits/actions.ts)
   const GRID_DEADLINE_DAYS: Record<string, number> = { '天合': 43, '天合光能': 43 };
   const DEFAULT_GRID_DEADLINE_DAYS = 28;
@@ -138,11 +188,18 @@ export default function CustomerDetailPage({
 
   const profit = calculateProfit();
 
+  // File upload state
+  const [voucherUrl, setVoucherUrl] = useState('');
+  const [closingVideoUrl, setClosingVideoUrl] = useState('');
+  const [uploadingFile, setUploadingFile] = useState(false);
+
   const loadCustomer = async () => {
     setLoading(true);
     const result = await getCustomerAction(id);
     if (result.success && result.data) {
       setCustomer(result.data);
+      setVoucherUrl(result.data.entry_voucher_url || '');
+      setClosingVideoUrl(result.data.closing_video_url || '');
       setEditForm({
         name: result.data.name,
         phone: result.data.phone || '',
@@ -969,6 +1026,190 @@ export default function CustomerDetailPage({
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 凭证管理 */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">凭证管理</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* 进场凭证 */}
+          <div className="p-4 border border-gray-200 rounded-lg">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-medium text-gray-900">进场凭证</h3>
+              {customer?.entry_voucher_url && (
+                <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">
+                  已上传
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-gray-500 mb-3">
+              施工队进场时上传（首期提成 50% 依据）
+            </p>
+            {canEdit ? (
+              <>
+                <input
+                  type="url"
+                  value={voucherUrl}
+                  onChange={(e) => setVoucherUrl(e.target.value)}
+                  placeholder="粘贴凭证链接（图片/视频URL）"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2"
+                />
+                <button
+                  onClick={handleSaveVoucher}
+                  disabled={submitting}
+                  className="w-full px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {submitting ? '保存中...' : '保存凭证'}
+                </button>
+              </>
+            ) : (
+              <p className="text-sm text-gray-400">无权编辑</p>
+            )}
+            {customer?.entry_voucher_url && (
+              <a
+                href={customer.entry_voucher_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-block text-sm text-indigo-600 hover:underline"
+              >
+                查看凭证 →
+              </a>
+            )}
+          </div>
+
+          {/* 满意视频 */}
+          <div className="p-4 border border-gray-200 rounded-lg">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-medium text-gray-900">满意视频</h3>
+              {customer?.closing_video_url && (
+                <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">
+                  已上传
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-gray-500 mb-3">
+              闭环时上传（含初装补贴画面，二期提成 50% 依据）
+            </p>
+            {canEdit ? (
+              <>
+                <input
+                  type="url"
+                  value={closingVideoUrl}
+                  onChange={(e) => setClosingVideoUrl(e.target.value)}
+                  placeholder="粘贴视频链接"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2"
+                />
+                <button
+                  onClick={handleSaveClosingVideo}
+                  disabled={submitting}
+                  className="w-full px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {submitting ? '保存中...' : '保存视频链接'}
+                </button>
+              </>
+            ) : (
+              <p className="text-sm text-gray-400">无权编辑</p>
+            )}
+            {customer?.closing_video_url && (
+              <a
+                href={customer.closing_video_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-block text-sm text-indigo-600 hover:underline"
+              >
+                查看视频 →
+              </a>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 提成分期状态 */}
+      {customer && (
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">提成进度</h2>
+          {(() => {
+            const status = getInstallmentStatus();
+            if (!status) return null;
+            return (
+              <div className="space-y-4">
+                {/* Progress bar */}
+                <div className="relative">
+                  <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
+                      style={{ width: `${status.totalProgress}%` }}
+                    />
+                  </div>
+                  <div className="absolute top-0 left-0 w-full h-full flex items-center justify-between px-2">
+                    <span className="text-xs font-medium text-white">首期50%</span>
+                    <span className="text-xs font-medium text-white">二期50%</span>
+                  </div>
+                </div>
+
+                {/* Installment details */}
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div className={`p-4 rounded-lg border ${
+                    status.firstPaid ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
+                  }`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                        status.firstPaid ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-500'
+                      }`}>
+                        {status.firstPaid ? (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : '1'}
+                      </div>
+                      <span className="font-medium">首期提成 (50%)</span>
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      {status.firstPaid ? '✓ 已触发：进场凭证已上传' : '○ 待触发：上传进场凭证'}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">施工队进场时发放</p>
+                  </div>
+
+                  <div className={`p-4 rounded-lg border ${
+                    status.secondPaid ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
+                  }`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                        status.secondPaid ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-500'
+                      }`}>
+                        {status.secondPaid ? (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : '2'}
+                      </div>
+                      <span className="font-medium">二期提成 (50%)</span>
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      {status.secondPaid
+                        ? '✓ 已触发：闭环完成+满意视频'
+                        : status.hasClosingVideo && !status.isClosed
+                        ? '△ 待闭环：视频已传，需完成闭环阶段'
+                        : '○ 待触发：上传满意视频并完成闭环'}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">闭环完成时发放</p>
+                  </div>
+                </div>
+
+                {/* Settlement requirements */}
+                <div className="mt-4 p-3 bg-amber-50 rounded-lg text-sm">
+                  <p className="font-medium text-amber-800 mb-1">结算条件</p>
+                  <ul className="text-amber-700 space-y-1">
+                    <li>✓ 闭环完成</li>
+                    <li className={status.hasClosingVideo ? 'text-green-600' : ''}>✓ 满意视频（含初装补贴画面）</li>
+                    <li>✓ 钉钉提交审核</li>
+                    <li>✓ 1% 增值税专票</li>
+                  </ul>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
