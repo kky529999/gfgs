@@ -9,6 +9,7 @@ interface StageCustomer {
   phone: string;
   startDate: string;
   daysElapsed: number;
+  isTotalFlow?: boolean;
 }
 
 interface StageHoverProps {
@@ -56,7 +57,10 @@ export default function StageHover({ stage, stageLabel, count, customers }: Stag
                   {customer.name}
                 </div>
                 <div className="text-xs text-gray-500">
-                  {formatDate(customer.startDate)} 开始 · 已过{customer.daysElapsed}天
+                  {customer.isTotalFlow
+                    ? `${formatDate(customer.startDate)} 闭环 · 共用了${customer.daysElapsed}天`
+                    : `${formatDate(customer.startDate)} 开始 · 已过${customer.daysElapsed}天`
+                  }
                 </div>
               </Link>
             ))}

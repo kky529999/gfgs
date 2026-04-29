@@ -20,13 +20,13 @@ interface AdminMetrics {
   closePending: Array<{ id: string; name: string; phone: string; gridDate: string }>;
 }
 
-// 新增：每个阶段客户信息
 interface StageCustomer {
   id: string;
   name: string;
   phone: string;
   startDate: string;
   daysElapsed: number;
+  isTotalFlow?: boolean;
 }
 
 interface BusinessMetrics {
@@ -324,41 +324,15 @@ async function getDashboardData() {
   const gridThisMonth = uniqueGridThisMonthNames.size;
   const closeThisMonth = uniqueCloseThisMonthNames.size;
 
-  // 阶段统计（应用角色过滤，按名字去重）
-  let stageQuery = supabaseAdmin.from('customers').select('name, current_stage');
-
-  switch (auth.role) {
-    case 'business':
-      stageQuery = stageQuery.eq('salesperson_id', auth.user_id);
-      break;
-    case 'tech':
-      stageQuery = stageQuery.eq('tech_assigned_id', auth.user_id);
-      break;
-  }
-
-  const { data: stageData } = await stageQuery;
-
+  // 阶段统计：直接按 current_stage 统计，不重复（每个客户只属于一个阶段）
   const stageCounts: Record<string, number> = {};
-  // 按名字去重统计每个阶段的客户数
-  const stageNameSets: Record<string, Set<string>> = {
-    survey: new Set(), design: new Set(), filing: new Set(), record: new Set(),
-    grid_materials: new Set(), ship: new Set(), grid: new Set(), close: new Set()
-  };
-
-  stageData?.forEach((c) => {
-    const stage = c.current_stage;
-    if (stage && stageNameSets[stage] !== undefined) {
-      if (c.name) {
-        stageNameSets[stage].add(c.name);
-      }
-    }
-  });
-
-  for (const stage of Object.keys(stageNameSets)) {
-    stageCounts[stage] = stageNameSets[stage].size;
+  const stages = ['survey', 'design', 'filing', 'record', 'grid_materials', 'ship', 'grid', 'close'];
+  for (const stage of stages) {
+    stageCounts[stage] = 0;
   }
 
   // 获取每个阶段的客户详情（用于悬停显示）
+  // 注意：只取 current_stage === stage 的客户，避免重复
   let stageCustomersQuery = supabaseAdmin
     .from('customers')
     .select('id, name, phone, current_stage, survey_date, design_date, filing_date, record_date, grid_materials_date, ship_date, grid_date, close_date');
@@ -372,12 +346,12 @@ async function getDashboardData() {
       break;
   }
 
-  const { data: stageCustomersData } = await stageCustomersQuery;
+  // 加上 current_stage 过滤，只取当前阶段的客户
+  const { data: stageCustomersData } = await stageCustomersQuery
+    .in('current_stage', stages);
 
-  // 按阶段分组客户，计算已过天数
+  // 按阶段分组客户
   const stageCustomers: Record<string, StageCustomer[]> = {};
-  const stages = ['survey', 'design', 'filing', 'record', 'grid_materials', 'ship', 'grid', 'close'];
-
   for (const stage of stages) {
     stageCustomers[stage] = [];
   }
@@ -386,6 +360,26 @@ async function getDashboardData() {
     const stage = c.current_stage;
     if (!stage || !stages.includes(stage)) return;
 
+    // 统计该阶段客户数
+    stageCounts[stage] = (stageCounts[stage] || 0) + 1;
+
+    // 闭环客户：显示从现勘到闭环的总天数
+    if (stage === 'close' && c.survey_date && c.close_date) {
+      const surveyDate = new Date(c.survey_date);
+      const closeDate = new Date(c.close_date);
+      const totalDays = Math.floor((closeDate.getTime() - surveyDate.getTime()) / (1000 * 60 * 60 * 24));
+      stageCustomers[stage].push({
+        id: c.id,
+        name: c.name,
+        phone: c.phone || '',
+        startDate: c.survey_date,
+        daysElapsed: totalDays,
+        isTotalFlow: true,
+      });
+      return;
+    }
+
+    // 非闭环客户：显示从该阶段开始的天数
     const stageDateField = getStageDateField(stage);
     const stageDate = c[stageDateField as keyof typeof c] as string | null;
     if (!stageDate) return;
@@ -399,6 +393,7 @@ async function getDashboardData() {
       phone: c.phone || '',
       startDate: stageDate,
       daysElapsed,
+      isTotalFlow: false,
     });
   });
 
