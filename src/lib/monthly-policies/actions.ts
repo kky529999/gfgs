@@ -289,7 +289,7 @@ export async function deleteDeliveryTargetAction(
 // Validation schema for monthly department rules
 const createDeptRulesSchema = z.object({
   department: z.enum(['admin', 'tech', 'business'], {
-    errorMap: () => ({ message: '请选择有效的部门' }),
+    message: '请选择有效的部门',
   }),
   year_month: z.string().regex(/^\d{4}-\d{2}$/, '请输入有效的年月格式（如 2026-02）'),
   // 综合部奖励

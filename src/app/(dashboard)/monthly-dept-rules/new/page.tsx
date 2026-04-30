@@ -31,7 +31,7 @@ export default function NewDeptRulesPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState<CreateDeptRulesInput>({
-    department: '',
+    department: 'admin',
     year_month: new Date().toISOString().slice(0, 7),
     // Admin rewards
     admin_record_reward: 0,
