@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { toggleEmployeeStatusAction, resetEmployeePasswordAction } from '@/lib/employees/actions';
+import { toggleEmployeeStatusAction, resetEmployeePasswordAction, setEmployeePasswordAction } from '@/lib/employees/actions';
 import type { Employee, Department } from '@/types';
 
 interface EmployeeWithDepartment extends Omit<Employee, 'department'> {
@@ -21,6 +21,10 @@ export function EmployeeListClient({ employees, departments, defaultPassword }: 
   const [deptFilter, setDeptFilter] = useState<string>('all');
   const [loading, setLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Password change modal state
+  const [passwordModal, setPasswordModal] = useState<{ open: boolean; employeeId: string; employeeName: string } | null>(null);
+  const [newPassword, setNewPassword] = useState('');
 
   // Filter employees
   const filteredEmployees = employees.filter((emp) => {
@@ -65,6 +69,38 @@ export function EmployeeListClient({ employees, departments, defaultPassword }: 
     const result = await resetEmployeePasswordAction(employeeId);
     if (result.success) {
       setMessage({ type: 'success', text: `密码已重置为 ${defaultPassword}` });
+    } else {
+      setMessage({ type: 'error', text: result.error || '操作失败' });
+    }
+
+    setLoading(null);
+  };
+
+  const handleOpenPasswordModal = (employeeId: string, employeeName: string) => {
+    setPasswordModal({ open: true, employeeId, employeeName });
+    setNewPassword('');
+  };
+
+  const handleClosePasswordModal = () => {
+    setPasswordModal(null);
+    setNewPassword('');
+  };
+
+  const handleSetPassword = async () => {
+    if (!passwordModal || !newPassword) return;
+
+    if (newPassword.length < 6) {
+      setMessage({ type: 'error', text: '密码长度不能少于6位' });
+      return;
+    }
+
+    setLoading(passwordModal.employeeId);
+    setMessage(null);
+
+    const result = await setEmployeePasswordAction(passwordModal.employeeId, newPassword);
+    if (result.success) {
+      setMessage({ type: 'success', text: `已修改 ${passwordModal.employeeName} 的密码` });
+      handleClosePasswordModal();
     } else {
       setMessage({ type: 'error', text: result.error || '操作失败' });
     }
@@ -211,6 +247,13 @@ export function EmployeeListClient({ employees, departments, defaultPassword }: 
                         编辑
                       </Link>
                       <button
+                        onClick={() => handleOpenPasswordModal(employee.id, employee.name)}
+                        disabled={loading === employee.id}
+                        className="inline-flex items-center px-3 py-1.5 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded-md transition-colors disabled:opacity-50"
+                      >
+                        {loading === employee.id ? '处理中...' : '修改密码'}
+                      </button>
+                      <button
                         onClick={() => handleResetPassword(employee.id)}
                         disabled={loading === employee.id}
                         className="inline-flex items-center px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50"
@@ -245,6 +288,48 @@ export function EmployeeListClient({ employees, departments, defaultPassword }: 
       <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 text-sm text-gray-500">
         显示 {filteredEmployees.length} / {employees.length} 名员工
       </div>
+
+      {/* Password Change Modal */}
+      {passwordModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">修改密码</h3>
+              <p className="text-sm text-gray-500 mt-1">为 {passwordModal.employeeName} 设置新密码</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  新密码
+                </label>
+                <input
+                  type="text"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="输入新密码（至少6位）"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-150"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 rounded-b-xl">
+              <button
+                onClick={handleClosePasswordModal}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSetPassword}
+                disabled={loading === passwordModal.employeeId || !newPassword}
+                className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50 transition-colors"
+              >
+                {loading === passwordModal.employeeId ? '保存中...' : '保存'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

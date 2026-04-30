@@ -302,6 +302,49 @@ export async function resetEmployeePasswordAction(
   }
 }
 
+// Set employee password to a specific value
+export async function setEmployeePasswordAction(
+  employeeId: string,
+  newPassword: string
+): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const permission = await checkAdminPermission();
+  if (!permission.allowed) {
+    return { success: false, error: permission.error };
+  }
+
+  if (!newPassword || newPassword.length < 6) {
+    return { success: false, error: '密码长度不能少于6位' };
+  }
+
+  try {
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    const { error } = await supabaseAdmin
+      .from('employees')
+      .update({
+        password_hash: passwordHash,
+        must_change_password: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', employeeId);
+
+    if (error) {
+      console.error('Error setting password:', error);
+      return { success: false, error: '修改密码失败' };
+    }
+
+    revalidatePath('/employees');
+
+    return { success: true };
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    return { success: false, error: '系统错误' };
+  }
+}
+
 // Toggle employee active status
 export async function toggleEmployeeStatusAction(
   employeeId: string
