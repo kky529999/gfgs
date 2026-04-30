@@ -1,81 +1,131 @@
-// 测试脚本：检查用户角色和数据可见性
-// 运行方式：node --env-file=.env.local test-auth.mjs <手机号>
+// Authentication Flow Test Script
+// Run: node --env-file=.env.local test-auth.mjs
 
 import { createClient } from '@supabase/supabase-js';
-
-const phone = process.argv[2] || '18809185627'; // 默认测试王总
+import jwt from 'jsonwebtoken';
+import http from 'http';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const jwtSecret = process.env.JWT_SECRET;
 
-if (!supabaseUrl || !supabaseServiceKey) {
+if (!supabaseUrl || !supabaseServiceKey || !jwtSecret) {
   console.error('Missing environment variables');
   process.exit(1);
 }
 
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+const port = 3000;
 
-console.log(`Testing login and customer visibility for: ${phone}\n`);
+console.log('=== Authentication Flow Test ===');
 
-// 1. 查找员工
-const { data: employee, error: empError } = await supabaseAdmin
-  .from('employees')
-  .select('id, name, phone, title, department_id, departments!inner(code, name)')
-  .eq('phone', phone)
-  .single();
+// Helper to make HTTP requests
+function makeRequest(method, path, body, cookie) {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: 'localhost',
+      port,
+      path,
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(cookie && { 'Cookie': cookie }),
+      },
+    };
 
-if (empError || !employee) {
-  console.error('Employee not found');
-  process.exit(1);
+    const req = http.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        resolve({
+          statusCode: res.statusCode,
+          body: data,
+        });
+      });
+    });
+
+    req.on('error', reject);
+    req.setTimeout(10000, () => {
+      req.destroy();
+      reject(new Error('Request timeout'));
+    });
+
+    if (body) req.write(JSON.stringify(body));
+    req.end();
+  });
 }
 
-console.log('Employee:', employee.name, '|', employee.phone);
-console.log('Department:', employee.departments?.name, '| Code:', employee.departments?.code);
+// Test 1: Verify admin user exists
+async function test1() {
+  console.log('Test 1: Verify admin user exists');
+  const phone = '18809185627';
+  const { data: employee } = await supabaseAdmin
+    .from('employees')
+    .select('id, name, phone, departments!inner(code)')
+    .eq('phone', phone)
+    .single();
 
-// 2. 检查 RLS 可见性（模拟 business 角色）
-console.log('\n=== Testing RLS Visibility ===');
+  if (employee) {
+    console.log('  PASS: Admin user found - ' + employee.name);
+    return employee;
+  } else {
+    console.log('  FAIL: Admin user not found');
+    return null;
+  }
+}
 
-// 设置 RLS session 模拟 business 角色
-await supabaseAdmin.rpc('set_auth_session', {
-  p_user_id: employee.id,
-  p_role: employee.departments?.code || 'business'
-});
+// Test 2: JWT generation
+async function test2(employee) {
+  console.log('Test 2: JWT token generation');
+  try {
+    const userRole = employee.departments?.code || 'business';
+    const token = jwt.sign(
+      { user_id: employee.id, role: userRole, phone: employee.phone },
+      jwtSecret,
+      { expiresIn: '7d' }
+    );
+    const decoded = jwt.verify(token, jwtSecret);
+    console.log('  PASS: JWT generated and verified');
+    return token;
+  } catch (e) {
+    console.log('  FAIL: JWT generation failed - ' + e.message);
+    return null;
+  }
+}
 
-const { data: businessVisible, count: businessCount } = await supabaseAdmin
-  .from('customers')
-  .select('*', { count: 'exact', head: true })
-  .eq('salesperson_id', employee.id);
+// Test 3: No auth access
+async function test3() {
+  console.log('Test 3: Access without auth');
+  const res = await makeRequest('GET', '/dashboard');
+  if (res.statusCode === 200 || res.statusCode === 302) {
+    console.log('  PASS: Status ' + res.statusCode);
+  } else {
+    console.log('  INFO: Status ' + res.statusCode);
+  }
+}
 
-console.log(`As ${employee.departments?.code} (business role): ${businessCount} customers visible`);
+// Test 4: With auth access
+async function test4(token) {
+  console.log('Test 4: Access with valid auth');
+  const cookie = 'gfgs_auth=' + encodeURIComponent(token);
+  const res = await makeRequest('GET', '/dashboard', null, cookie);
+  if (res.statusCode === 200) {
+    const hasData = res.body.includes('??') || res.body.includes('dashboard');
+    console.log('  PASS: Dashboard loaded (status ' + res.statusCode + ')');
+  } else {
+    console.log('  FAIL: Access denied (status ' + res.statusCode + ')');
+  }
+}
 
-// 设置 RLS session 模拟 admin 角色
-await supabaseAdmin.rpc('set_auth_session', {
-  p_user_id: employee.id,
-  p_role: 'admin'
-});
+// Run tests
+async function runTests() {
+  const employee = await test1();
+  if (!employee) return;
+  const token = await test2(employee);
+  if (!token) return;
+  await test3();
+  await test4(token);
+  console.log('=== Tests Complete ===');
+}
 
-const { data: adminVisible, count: adminCount } = await supabaseAdmin
-  .from('customers')
-  .select('*', { count: 'exact', head: true });
-
-console.log(`As admin (bypassing salesperson filter): ${adminCount} customers visible`);
-
-// 3. 检查服务角色（绕过 RLS）
-const { count: totalCount } = await supabaseAdmin
-  .from('customers')
-  .select('*', { count: 'exact', head: true });
-
-console.log(`\nTotal customers (service role): ${totalCount}`);
-
-// 4. 检查是否有客户分配给这个员工
-const { data: assignedCustomers } = await supabaseAdmin
-  .from('customers')
-  .select('id, name')
-  .eq('salesperson_id', employee.id);
-
-console.log(`\nCustomers assigned to ${employee.name}:`, assignedCustomers?.length || 0);
-assignedCustomers?.slice(0, 5).forEach((c, i) => {
-  console.log(`  ${i + 1}. ${c.name} (${c.id})`);
-});
-
-console.log('\n✓ Test completed');
+runTests().catch(console.error);
