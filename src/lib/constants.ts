@@ -5,4 +5,4 @@
 
 // Default password for new employees
 // Can be overridden via environment variable DEFAULT_INITIAL_PASSWORD
-export const DEFAULT_PASSWORD = process.env.DEFAULT_INITIAL_PASSWORD || 'ChangeMe123!';
+export const DEFAULT_PASSWORD = process.env.DEFAULT_INITIAL_PASSWORD || '123456';

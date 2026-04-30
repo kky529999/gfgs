@@ -488,3 +488,46 @@ export const STAGE_ORDER: CustomerStage[] = [
   'grid',
   'close',
 ];
+
+// ---------- 需求反馈类型 ----------
+
+export type RequirementType = 'feedback' | 'bug' | 'feature';
+export type RequirementPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type RequirementStatus = 'submitted' | 'in_progress' | 'completed' | 'confirmed' | 'rejected';
+
+export interface Requirement {
+  id: string;
+  title: string;
+  description: string | null;
+  type: RequirementType;
+  priority: RequirementPriority;
+  status: RequirementStatus;
+  submitter_id: string | null;
+  submitter_name: string | null;
+  submitter_phone: string | null;
+  assigned_to: string | null;
+  assigned_name: string | null;
+  response: string | null;
+  completed_at: string | null;
+  confirmed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateRequirementInput {
+  title: string;
+  description?: string;
+  type: RequirementType;
+  priority: RequirementPriority;
+}
+
+export interface UpdateRequirementInput {
+  title?: string;
+  description?: string;
+  type?: RequirementType;
+  priority?: RequirementPriority;
+  status?: RequirementStatus;
+  assigned_to?: string | null;
+  response?: string;
+  confirmed_at?: string;
+}

@@ -9,12 +9,39 @@
 
 ---
 
+## 部署信息
+
+- **生产服务器**：http://120.27.221.35:3003/
+- **数据库**：Supabase Cloud（远程）
+- **部署方式**：自建服务器（非 Vercel）
+
+### 部署流程
+
+```bash
+# 1. 本地构建
+npm run build
+
+# 2. 打包部署文件
+tar -czvf gfgs-deploy.tar.gz .next node_modules package.json package-lock.json
+
+# 3. 上传到服务器（通过 scp 或其他方式）
+scp gfgs-deploy.tar.gz user@120.27.221.35:/path/to/gfgs/
+
+# 4. 在服务器上解压并重启
+ssh user@120.27.221.35
+cd /path/to/gfgs
+tar -xzvf gfgs-deploy.tar.gz
+pm2 restart gfgs  # 或其他进程管理方式
+```
+
+---
+
 ## 技术栈
 
 - 前端：Next.js 15 + React 19 + TypeScript + Tailwind CSS
 - 后端：Next.js App Router（Server Actions）
 - 数据库：Supabase（PostgreSQL + RLS）
-- 部署：Vercel + Supabase Cloud
+- 部署：自建服务器（http://120.27.221.35:3003/）
 
 ---
 
