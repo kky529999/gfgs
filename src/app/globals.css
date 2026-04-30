@@ -134,3 +134,53 @@
     transform: scale(0.98);
   }
 }
+
+/* 侧边栏滚动条样式 */
+.sidebar-menu-container {
+  max-height: calc(100vh - 180px);
+  min-height: 100px;
+}
+
+.sidebar-menu-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-menu-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-menu-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+.sidebar-menu-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Sidebar menu hover pill effect */
+.menu-item-wrapper {
+  position: relative;
+}
+
+.menu-item-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  background: rgba(75, 85, 99, 0.6);
+  opacity: 0;
+  transform: scale(0.96);
+  transition: all 200ms ease-out;
+  z-index: 0;
+}
+
+.menu-item-wrapper:hover::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.menu-item-wrapper > a {
+  position: relative;
+  z-index: 1;
+}

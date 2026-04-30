@@ -22,7 +22,7 @@ export default async function DashboardLayout({
       {/* Sidebar */}
       <Sidebar
         userRole={auth.role}
-        userName={auth.phone}
+        userName={auth.name || auth.phone}
       />
 
       {/* Main content */}

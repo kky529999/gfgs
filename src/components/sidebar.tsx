@@ -239,12 +239,13 @@ export default function Sidebar({ userRole, userName }: SidebarProps) {
         </div>
 
         {/* Menu */}
-        <nav className="flex-1 overflow-y-auto py-4">
-          <ul className="space-y-1 px-2">
+        <div className="flex-1 overflow-y-auto sidebar-menu-container">
+          <nav className="py-4">
+            <ul className="space-y-1 px-2">
             {filteredItems.map((item) => {
               const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
               return (
-                <li key={item.href}>
+                <li key={item.href} className="menu-item-wrapper">
                   <Link
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
@@ -253,7 +254,7 @@ export default function Sidebar({ userRole, userName }: SidebarProps) {
                       text-sm font-medium transition-colors duration-150
                       ${isActive
                         ? 'bg-primary text-white'
-                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                        : 'text-gray-300 hover:text-white'
                       }
                     `}
                   >
@@ -263,8 +264,9 @@ export default function Sidebar({ userRole, userName }: SidebarProps) {
                 </li>
               );
             })}
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        </div>
 
         {/* Logout */}
         <div className="p-4 border-t border-gray-800">
