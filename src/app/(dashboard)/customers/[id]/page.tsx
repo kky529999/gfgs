@@ -21,7 +21,7 @@ interface Employee {
   id: string;
   name: string;
   phone: string;
-  department_code: string | null;
+  department_code?: string | null;
   title: string;
 }
 
@@ -319,7 +319,7 @@ export default function CustomerDetailPage({
     // Load employees for stage operator selection
     getEmployeesAction().then((result) => {
       if (result.success && result.data) {
-        setEmployees(result.data);
+        setEmployees(result.data.map(({ department: _d, ...emp }) => emp));
       }
     });
 
