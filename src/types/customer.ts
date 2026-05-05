@@ -15,6 +15,8 @@ export type CommissionStatus = 'pending' | 'applied' | 'approved' | 'paid';
 
 export type CommissionType = 'entry' | 'closing';
 
+export type SchemeType = 'courtyard' | 'array' | 'sunroom';
+
 // Stage display labels
 export const STAGE_LABELS: Record<CustomerStage, string> = {
   survey: '现勘',
@@ -53,14 +55,33 @@ export const COMMISSION_STATUS_LABELS: Record<CommissionStatus, string> = {
   paid: '已支付',
 };
 
+// Commission type labels
+export const COMMISSION_TYPE_LABELS: Record<CommissionType, string> = {
+  entry: '开工提成',
+  closing: '闭环提成',
+};
+
+// Scheme type labels
+export const SCHEME_TYPE_LABELS: Record<SchemeType, string> = {
+  courtyard: '庭院式',
+  array: '阵列式',
+  sunroom: '阳光房',
+};
+
 // Customer data interface
 export interface Customer {
   id: string;
   name: string;
   phone: string | null;
-  area: string | null;
-  township: string | null;
-  address: string | null;
+  // 地址（结构化三级联动）
+  area: string | null;              // 区县（原使用）
+  township: string | null;          // 乡镇
+  address: string | null;           // 合并后的完整地址
+  address_city: string | null;       // 城市（如：宝鸡市）
+  address_district: string | null;   // 区县（如：渭滨区）
+  address_detail: string | null;     // 详细地址
+  // 方案类型
+  scheme_type: SchemeType | null;    // 庭院式/阵列式/阳光房
   capacity: string | null;
   brand: string | null;
   panel_count: number | null;
@@ -127,10 +148,14 @@ export interface CustomerWithRelations extends Customer {
 // Input types for creating/updating customers
 export interface CreateCustomerInput {
   name: string;
-  phone?: string;
+  phone: string; // 必填
   area?: string;
   township?: string;
   address?: string;
+  // 地址三级联动
+  address_city?: string;     // 城市（如：宝鸡市）
+  address_district?: string; // 区县（如：渭滨区）
+  address_detail?: string;   // 详细地址
   capacity?: string;
   brand?: string;
   panel_count?: number;
@@ -140,7 +165,10 @@ export interface CreateCustomerInput {
   salesperson_id?: string;
   tech_assigned_id?: string;
   current_stage?: CustomerStage;
+  // 计划现勘日期（原：现勘日期）
   survey_date?: string;
+  // 方案类型
+  scheme_type?: SchemeType;
 }
 
 export interface UpdateCustomerInput {
@@ -149,6 +177,10 @@ export interface UpdateCustomerInput {
   area?: string;
   township?: string;
   address?: string;
+  // 地址三级联动
+  address_city?: string;     // 城市（如：宝鸡市）
+  address_district?: string; // 区县（如：渭滨区）
+  address_detail?: string;   // 详细地址
   capacity?: string;
   brand?: string;
   panel_count?: number;
@@ -157,6 +189,7 @@ export interface UpdateCustomerInput {
   dealer_id?: string;
   salesperson_id?: string;
   tech_assigned_id?: string;
+  // 计划现勘日期（原：现勘日期）
   survey_date?: string;
   design_date?: string;
   filing_date?: string;
@@ -183,6 +216,8 @@ export interface UpdateCustomerInput {
   construction_labor?: number;
   construction_material?: number;
   construction_other?: number;
+  // 方案类型
+  scheme_type?: SchemeType;
 }
 
 // Stage progress input (advancing to next stage)

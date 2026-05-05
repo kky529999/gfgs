@@ -275,6 +275,11 @@ export async function importCustomersFromExcelAction(
           continue;
         }
 
+        if (!mapped.phone) {
+          errors.push(`第${rowNumber}行: 缺少联系电话`);
+          continue;
+        }
+
         // Set defaults
         const customer: CreateCustomerInput = {
           name: mapped.name,

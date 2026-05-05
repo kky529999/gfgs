@@ -153,9 +153,15 @@ export async function createCustomerAction(
       .insert({
         name: input.name,
         phone: input.phone,
-        area: input.area,
-        township: input.township,
-        address: input.address,
+        // 地址三级联动字段
+        address_city: input.address_city,
+        address_district: input.address_district,
+        address_detail: input.address_detail,
+        // 保留旧字段用于兼容
+        area: input.address_district,
+        address: input.address_detail,
+        // 方案类型
+        scheme_type: input.scheme_type,
         capacity: input.capacity,
         brand: input.brand,
         panel_count: input.panel_count,

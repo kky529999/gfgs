@@ -57,10 +57,114 @@ export const customerBaseSchema = z.object({
     .max(100, '姓名不能超过100个字符'),
   phone: z.string()
     .regex(/^1[3-9]\d{9}$/, '请输入有效的手机号'),
+  // 新地址三级联动字段
+  address_city: z.string()
+    .max(100, '城市名称不能超过100个字符')
+    .optional()
+    .or(z.literal('')),
+  address_district: z.string()
+    .max(100, '区县名称不能超过100个字符')
+    .optional()
+    .or(z.literal('')),
+  address_detail: z.string()
+    .max(500, '详细地址不能超过500个字符')
+    .optional()
+    .or(z.literal('')),
+  // 旧字段兼容
   address: z.string()
     .max(500, '地址不能超过500个字符')
     .optional()
     .or(z.literal('')),
+  area: z.string()
+    .max(100, '区县名称不能超过100个字符')
+    .optional()
+    .or(z.literal('')),
+  township: z.string()
+    .max(100, '乡镇名称不能超过100个字符')
+    .optional()
+    .or(z.literal('')),
+  // 方案类型
+  scheme_type: z.enum(['courtyard', 'array', 'sunroom'] as const, {
+    error: '请选择方案类型',
+  }).optional().nullable(),
+  brand: z.string()
+    .max(100, '品牌名称不能超过100个字符')
+    .optional()
+    .or(z.literal('')),
+  capacity: z.string()
+    .max(50, '装机容量不能超过50个字符')
+    .optional()
+    .or(z.literal('')),
+  panel_count: z.number({ error: '请输入组件数量' })
+    .int('组件数量必须为整数')
+    .positive('组件数量必须为正数')
+    .optional()
+    .nullable(),
+  house_type: z.string()
+    .max(100, '房屋类型不能超过100个字符')
+    .optional()
+    .or(z.literal('')),
+  customer_type: z.enum(['direct', 'dealer'] as const, {
+    error: '请选择客户类型',
+  }).optional(),
+  dealer_id: z.string()
+    .uuid('无效的二级商ID')
+    .optional()
+    .nullable(),
+  salesperson_id: z.string()
+    .uuid('无效的业务员ID')
+    .optional()
+    .nullable(),
+  tech_assigned_id: z.string()
+    .uuid('无效的技术员ID')
+    .optional()
+    .nullable(),
+  current_stage: z.enum([
+    'survey', 'design', 'filing', 'record',
+    'grid_materials', 'ship', 'grid', 'close'
+  ] as const, { error: '请选择当前阶段' }).optional(),
+  survey_date: z.string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的日期')
+    .optional()
+    .nullable(),
+  design_date: z.string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的日期')
+    .optional()
+    .nullable(),
+  filing_date: z.string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的日期')
+    .optional()
+    .nullable(),
+  record_date: z.string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的日期')
+    .optional()
+    .nullable(),
+  grid_materials_date: z.string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的日期')
+    .optional()
+    .nullable(),
+  ship_date: z.string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的日期')
+    .optional()
+    .nullable(),
+  grid_date: z.string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的日期')
+    .optional()
+    .nullable(),
+  close_date: z.string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的日期')
+    .optional()
+    .nullable(),
+  // 旧字段兼容
+  roofArea: z.number({ error: '请输入屋顶面积' })
+    .positive('屋顶面积必须为正数')
+    .max(10000, '屋顶面积不能超过10000平方米')
+    .optional()
+    .nullable(),
+  roofType: z.enum(['砖混', '钢结构', '木结构', '其他'] as const, {
+    error: '请选择屋顶类型',
+  }).optional().nullable(),
+  // 旧字段
   village: z.string()
     .max(200, '村庄名称不能超过200个字符')
     .optional()
@@ -77,67 +181,6 @@ export const customerBaseSchema = z.object({
     .max(100, '城市名称不能超过100个字符')
     .optional()
     .or(z.literal('')),
-  roofArea: z.number({ error: '请输入屋顶面积' })
-    .positive('屋顶面积必须为正数')
-    .max(10000, '屋顶面积不能超过10000平方米')
-    .optional()
-    .nullable(),
-  roofType: z.enum(['砖混', '钢结构', '木结构', '其他'] as const, {
-    error: '请选择屋顶类型',
-  }).optional().nullable(),
-  brand: z.string()
-    .max(100, '品牌名称不能超过100个字符')
-    .optional()
-    .or(z.literal('')),
-  capacity: z.number({ error: '请输入装机容量' })
-    .positive('装机容量必须为正数')
-    .max(1000, '装机容量不能超过1000kW')
-    .optional()
-    .nullable(),
-  currentStage: z.enum([
-    'survey', 'design', 'filing', 'record',
-    'grid_materials', 'ship', 'grid', 'close'
-  ] as const, { error: '请选择当前阶段' }),
-  salespersonId: z.string()
-    .uuid('无效的业务员ID')
-    .optional()
-    .nullable(),
-  techAssignedId: z.string()
-    .uuid('无效的技术员ID')
-    .optional()
-    .nullable(),
-  surveyDate: z.string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的日期')
-    .optional()
-    .nullable(),
-  designDate: z.string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的日期')
-    .optional()
-    .nullable(),
-  filingDate: z.string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的日期')
-    .optional()
-    .nullable(),
-  recordDate: z.string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的日期')
-    .optional()
-    .nullable(),
-  gridMaterialsDate: z.string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的日期')
-    .optional()
-    .nullable(),
-  shipDate: z.string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的日期')
-    .optional()
-    .nullable(),
-  gridDate: z.string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的日期')
-    .optional()
-    .nullable(),
-  closeDate: z.string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, '请输入有效的日期')
-    .optional()
-    .nullable(),
   notes: z.string()
     .max(5000, '备注不能超过5000个字符')
     .optional()
