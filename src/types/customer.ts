@@ -105,6 +105,7 @@ export interface Customer {
   construction_other: number | null;
   created_at: string;
   updated_at: string;
+  deleted_at: string | null;
 }
 
 // Customer with related data

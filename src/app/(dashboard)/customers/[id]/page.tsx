@@ -6,11 +6,24 @@ import {
   getCustomerAction,
   updateCustomerAction,
   advanceStageAction,
+  deleteCustomerAction,
+  restoreCustomerAction,
 } from '@/lib/customers/actions';
 import { getAuthInfoAction } from '@/lib/auth/actions';
+import { getEmployeesAction } from '@/lib/employees/actions';
+import { getBrands } from '@/lib/brands/actions';
 import { getInvoicesAction, createInvoiceAction, deleteInvoiceAction } from '@/lib/invoices/actions';
 import { STAGE_LABELS, STAGE_ORDER, CUSTOMER_TYPE_LABELS, type CustomerStage, type CustomerWithRelations } from '@/types/customer';
 import type { Invoice, BrandPolicySnapshot } from '@/types';
+import type { Brand } from '@/lib/brands/actions';
+
+interface Employee {
+  id: string;
+  name: string;
+  phone: string;
+  department_code: string | null;
+  title: string;
+}
 
 export default function CustomerDetailPage({
   params,
@@ -20,6 +33,8 @@ export default function CustomerDetailPage({
   const { id } = use(params);
   const [auth, setAuth] = useState<{ user_id: string; role: string } | null>(null);
   const [customer, setCustomer] = useState<CustomerWithRelations | null>(null);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -44,6 +59,13 @@ export default function CustomerDetailPage({
     invoice_date: '',
     note: '',
   });
+
+  // Delete confirmation modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  // Stage operator editing state
+  const [editingOperatorFor, setEditingOperatorFor] = useState<string | null>(null);
+  const [selectedOperator, setSelectedOperator] = useState<string>('');
 
   const loadInvoices = async () => {
     setInvoicesLoading(true);
@@ -82,6 +104,26 @@ export default function CustomerDetailPage({
       await loadInvoices();
     } else {
       setError(result.error || '删除发票失败');
+    }
+  };
+
+  const handleDeleteCustomer = async () => {
+    const result = await deleteCustomerAction(id);
+    if (result.success) {
+      window.location.href = '/customers';
+    } else {
+      setError(result.error || '删除失败');
+      setShowDeleteModal(false);
+    }
+  };
+
+  const handleRestoreCustomer = async () => {
+    const result = await restoreCustomerAction(id);
+    if (result.success) {
+      await loadCustomer();
+      setShowDeleteModal(false);
+    } else {
+      setError(result.error || '恢复失败');
     }
   };
 
@@ -188,6 +230,31 @@ export default function CustomerDetailPage({
 
   const profit = calculateProfit();
 
+  // Calculate days between two dates
+  const getDaysBetween = (date1: string | null | undefined, date2: string | null | undefined): number | null => {
+    if (!date1 || !date2) return null;
+    const d1 = new Date(date1);
+    const d2 = new Date(date2);
+    if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return null;
+    const diffTime = Math.abs(d2.getTime() - d1.getTime());
+    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  // Calculate total project days (from creation to close)
+  const getTotalProjectDays = (): number | null => {
+    if (!customer || !customer.close_date || !customer.created_at) return null;
+    return getDaysBetween(customer.created_at, customer.close_date);
+  };
+
+  // Check if a stage is overdue based on brand deadline
+  const isStageOverdue = (stage: CustomerStage, stageDate: string | null | undefined): boolean => {
+    if (!customer || stage !== 'grid') return false;
+    if (!customer.ship_date || !stageDate) return false;
+    const deadline = GRID_DEADLINE_DAYS[customer.brand || ''] || DEFAULT_GRID_DEADLINE_DAYS;
+    const daysSinceShip = getDaysBetween(customer.ship_date, stageDate);
+    return daysSinceShip !== null && daysSinceShip > deadline;
+  };
+
   // File upload state
   const [voucherUrl, setVoucherUrl] = useState('');
   const [closingVideoUrl, setClosingVideoUrl] = useState('');
@@ -239,6 +306,20 @@ export default function CustomerDetailPage({
     getAuthInfoAction().then((result) => {
       if (result.success && result.data) {
         setAuth(result.data);
+      }
+    });
+
+    // Load brands for dropdown
+    getBrands().then((result) => {
+      if (result.data) {
+        setBrands(result.data);
+      }
+    });
+
+    // Load employees for stage operator selection
+    getEmployeesAction().then((result) => {
+      if (result.success && result.data) {
+        setEmployees(result.data);
       }
     });
 
@@ -321,6 +402,36 @@ export default function CustomerDetailPage({
     setShowStageModal(true);
   };
 
+  const openOperatorEdit = (stage: CustomerStage, currentOperatorId: string | null) => {
+    setEditingOperatorFor(stage);
+    setSelectedOperator(currentOperatorId || '');
+  };
+
+  const handleUpdateStageOperator = async () => {
+    if (!editingOperatorFor) return;
+
+    setSubmitting(true);
+    const operatorField = getStageOperatorField(editingOperatorFor as CustomerStage);
+
+    const result = await updateCustomerAction(id, {
+      [operatorField]: selectedOperator || null,
+    });
+
+    if (result.success) {
+      await loadCustomer();
+    } else {
+      setError(result.error || '更新负责人失败');
+    }
+    setEditingOperatorFor(null);
+    setSelectedOperator('');
+    setSubmitting(false);
+  };
+
+  const cancelOperatorEdit = () => {
+    setEditingOperatorFor(null);
+    setSelectedOperator('');
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -362,10 +473,22 @@ export default function CustomerDetailPage({
             <h1 className="text-2xl font-bold text-gray-900">{customer.name}</h1>
             <p className="text-gray-500 mt-1">
               {customer.phone || '无电话'} · {customer.area || '未知地区'}
+              {customer.current_stage === 'close' && (() => {
+                const totalDays = getTotalProjectDays();
+                return totalDays !== null ? ` · 项目总天数: ${totalDays}天` : '';
+              })()}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {(auth?.role === 'admin' || auth?.role === 'gm') && !isEditing && (
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+            >
+              删除客户
+            </button>
+          )}
           {canEdit && !isEditing && (
             <button
               onClick={() => setIsEditing(true)}
@@ -487,12 +610,18 @@ export default function CustomerDetailPage({
             <div>
               <label className="block text-sm font-medium text-gray-500 mb-1">品牌</label>
               {isEditing ? (
-                <input
-                  type="text"
+                <select
                   value={editForm.brand}
                   onChange={(e) => handleEditChange('brand', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                />
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="">请选择品牌</option>
+                  {brands.map((brand) => (
+                    <option key={brand.id} value={brand.brand_name}>
+                      {brand.brand_name}
+                    </option>
+                  ))}
+                </select>
               ) : (
                 <p className="text-gray-900">{customer.brand || '-'}</p>
               )}
@@ -660,11 +789,33 @@ export default function CustomerDetailPage({
                 >
                   {/* Connector line (before this node) */}
                   {index > 0 && (
-                    <div
-                      className={`absolute top-6 -left-2 w-8 h-0.5 ${
-                        isCompleted || isCurrent ? 'bg-indigo-500' : 'bg-gray-200'
-                      }`}
-                    />
+                    <div className="absolute top-6 -left-2 flex items-center w-8">
+                      <div
+                        className={`flex-1 h-0.5 ${
+                          isCompleted || isCurrent ? 'bg-indigo-500' : 'bg-gray-200'
+                        }`}
+                      />
+                      {/* Days between stages badge */}
+                      {(() => {
+                        const prevStage = STAGE_ORDER[index - 1];
+                        const prevDateField = getStageDateField(prevStage);
+                        const currDateField = getStageDateField(stage);
+                        const prevDate = customer[prevDateField as keyof CustomerWithRelations] as string | null;
+                        const currDate = stageDate;
+                        const days = getDaysBetween(prevDate, currDate);
+                        if (days === null) return null;
+                        return (
+                          <div className={`absolute -top-3 left-1/2 -translate-x-1/2 px-1.5 py-0.5 text-xs rounded-full ${
+                            days <= 7 ? 'bg-green-100 text-green-700' :
+                            days <= 14 ? 'bg-blue-100 text-blue-700' :
+                            days <= 21 ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-red-100 text-red-700'
+                          }`}>
+                            {days}d
+                          </div>
+                        );
+                      })()}
+                    </div>
                   )}
 
                   {/* Stage number circle */}
@@ -675,7 +826,7 @@ export default function CustomerDetailPage({
                         : isCurrent
                         ? 'bg-indigo-600 text-white ring-4 ring-indigo-100 animate-pulse'
                         : 'bg-gray-200 text-gray-500'
-                    }`}
+                    } ${stage === 'grid' && isStageOverdue(stage, stageDate) ? 'ring-4 ring-red-300 bg-red-600 text-white' : ''}`}
                   >
                     {isCompleted ? (
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -683,6 +834,14 @@ export default function CustomerDetailPage({
                       </svg>
                     ) : (
                       index + 1
+                    )}
+                    {/* Overdue warning badge */}
+                    {stage === 'grid' && isStageOverdue(stage, stageDate) && (
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                      </div>
                     )}
                   </div>
 
@@ -812,10 +971,62 @@ export default function CustomerDetailPage({
                       ? '已完成'
                       : '待处理'}
                   </p>
-                  {stageOperator && (
-                    <p className="text-xs text-green-600 mt-1">
-                      负责人: {stageOperator.name}
-                    </p>
+                  {editingOperatorFor === stage ? (
+                    <div className="mt-2 flex flex-col gap-1">
+                      <select
+                        value={selectedOperator}
+                        onChange={(e) => setSelectedOperator(e.target.value)}
+                        className="w-full px-2 py-1 text-xs border border-indigo-300 rounded focus:ring-1 focus:ring-indigo-500"
+                      >
+                        <option value="">无负责人</option>
+                        {employees.map((emp) => (
+                          <option key={emp.id} value={emp.id}>
+                            {emp.name}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={handleUpdateStageOperator}
+                          disabled={submitting}
+                          className="flex-1 px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+                        >
+                          保存
+                        </button>
+                        <button
+                          onClick={cancelOperatorEdit}
+                          className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+                        >
+                          取消
+                        </button>
+                      </div>
+                    </div>
+                  ) : stageOperator ? (
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-xs text-green-600">
+                        负责人: {stageOperator.name}
+                      </p>
+                      {(auth?.role === 'admin' || auth?.role === 'gm') && (
+                        <button
+                          onClick={() => openOperatorEdit(stage, stageOperator.id)}
+                          className="text-xs text-indigo-600 hover:text-indigo-800"
+                        >
+                          更改
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-xs text-gray-400">无负责人</p>
+                      {(auth?.role === 'admin' || auth?.role === 'gm') && (
+                        <button
+                          onClick={() => openOperatorEdit(stage, null)}
+                          className="text-xs text-indigo-600 hover:text-indigo-800"
+                        >
+                          添加
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               );
@@ -1210,6 +1421,52 @@ export default function CustomerDetailPage({
               </div>
             );
           })()}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="text-center">
+              <div className="mx-auto w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {customer?.deleted_at ? '恢复客户' : '删除客户'}
+              </h3>
+              <p className="text-gray-500 mb-6">
+                {customer?.deleted_at
+                  ? `确定要恢复客户「${customer?.name}」吗？恢复后客户将重新出现在列表中。`
+                  : `确定要删除客户「${customer?.name}」吗？删除后客户将不会出现在列表中，但数据不会丢失。`}
+              </p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  取消
+                </button>
+                {customer?.deleted_at ? (
+                  <button
+                    onClick={handleRestoreCustomer}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    恢复客户
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleDeleteCustomer}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    删除客户
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -327,6 +327,47 @@ export type Database = {
         };
         Update: Partial<Database['public']['Tables']['monthly_target_bonus']['Insert']>;
       };
+      brands: {
+        Row: {
+          id: string;
+          brand_name: string;
+          support_person: string | null;
+          support_phone: string | null;
+          tech_person: string | null;
+          tech_phone: string | null;
+          deposit_amount: number | null;
+          contract_no: string | null;
+          contract_start: string | null;
+          contract_end: string | null;
+          status: string;
+          remark: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['brands']['Row'], 'id' | 'created_at' | 'updated_at'> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['brands']['Insert']>;
+      };
+      stage_config: {
+        Row: {
+          id: string;
+          stage_key: string;
+          stage_name: string;
+          default_days: number;
+          description: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['stage_config']['Row'], 'id' | 'created_at' | 'updated_at'> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['stage_config']['Insert']>;
+      };
     };
   };
 };

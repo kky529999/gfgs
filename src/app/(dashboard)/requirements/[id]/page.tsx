@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getCurrentAuth } from '@/lib/auth/cookie';
+import { getAuthCookie } from '@/lib/auth/cookie';
 import { getRequirementAction } from '@/lib/requirements/actions';
 import RequirementDetailClient from './RequirementDetailClient';
 
@@ -9,7 +9,7 @@ interface PageProps {
 
 export default async function RequirementDetailPage({ params }: PageProps) {
   const { id: requirementId } = await params;
-  const auth = await getCurrentAuth();
+  const auth = await getAuthCookie();
 
   if (!auth) {
     redirect('/login');

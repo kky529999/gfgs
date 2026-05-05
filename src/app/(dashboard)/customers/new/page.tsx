@@ -8,8 +8,10 @@ import {
   getEmployeesAction,
   getDealersAction,
 } from '@/lib/customers/actions';
+import { getBrands } from '@/lib/brands/actions';
 import { getAuthInfoAction } from '@/lib/auth/actions';
 import type { CustomerType } from '@/types/customer';
+import type { Brand } from '@/lib/brands/actions';
 
 interface Employee {
   id: string;
@@ -46,6 +48,7 @@ export default function NewCustomerPage() {
   const [auth, setAuth] = useState<{ user_id: string; role: string } | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [dealers, setDealers] = useState<Dealer[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -89,6 +92,13 @@ export default function NewCustomerPage() {
     getDealersAction().then((result) => {
       if (result.success && result.data) {
         setDealers(result.data);
+      }
+    });
+
+    // Load brands for dropdown
+    getBrands().then((result) => {
+      if (result.data) {
+        setBrands(result.data);
       }
     });
   }, []);
@@ -261,14 +271,19 @@ export default function NewCustomerPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   品牌
                 </label>
-                <input
-                  type="text"
+                <select
                   name="brand"
                   value={formData.brand}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="如：天合"
-                />
+                >
+                  <option value="">请选择品牌</option>
+                  {brands.map((brand) => (
+                    <option key={brand.id} value={brand.brand_name}>
+                      {brand.brand_name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>

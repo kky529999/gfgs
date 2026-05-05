@@ -7,7 +7,7 @@ import {
   createCommissionAction,
   calculateCommissionAction,
 } from '@/lib/commissions/actions';
-import { getCustomersAction } from '@/lib/customers/actions';
+import { getActiveCustomersForCommission } from '@/lib/commissions/customer-queries';
 import type { CommissionType } from '@/types/commission';
 import type { Customer } from '@/types/customer';
 
@@ -28,10 +28,10 @@ export default function NewCommissionPage() {
   });
 
   useEffect(() => {
-    // 加载客户列表
-    getCustomersAction().then((result) => {
+    // 加载可提成客户列表（排除已闭环且提成完成的客户）
+    getActiveCustomersForCommission().then((result) => {
       if (result.success && result.data) {
-        setCustomers(result.data);
+        setCustomers(result.data as unknown as Customer[]);
       }
     });
   }, []);
@@ -148,11 +148,14 @@ export default function NewCommissionPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             >
               <option value="">请选择客户</option>
-              {customers.map((customer) => (
-                <option key={customer.id} value={customer.id}>
-                  {customer.name} {customer.phone ? `(${customer.phone})` : ''} - {customer.brand || '无品牌'} {customer.capacity ? `(${customer.capacity})` : ''}
-                </option>
-              ))}
+              {customers.map((customer) => {
+                const c = customer as unknown as { panel_count?: number | null };
+                return (
+                  <option key={customer.id} value={customer.id}>
+                    {customer.name} {customer.phone ? `(${customer.phone})` : ''} | {customer.brand || '无品牌'} {customer.capacity ? `(${customer.capacity})` : ''} {c.panel_count ? `[${c.panel_count}块]` : ''}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
@@ -160,7 +163,7 @@ export default function NewCommissionPage() {
           {selectedCustomer && (
             <div className="p-4 bg-gray-50 rounded-lg">
               <h4 className="text-sm font-medium text-gray-700 mb-2">客户信息</h4>
-              <dl className="grid grid-cols-2 gap-2 text-sm">
+              <dl className="grid grid-cols-3 gap-2 text-sm">
                 <div>
                   <dt className="text-gray-500">品牌</dt>
                   <dd className="text-gray-900">{selectedCustomer.brand || '未填写'}</dd>
@@ -169,7 +172,11 @@ export default function NewCommissionPage() {
                   <dt className="text-gray-500">装机容量</dt>
                   <dd className="text-gray-900">{selectedCustomer.capacity || '未填写'}</dd>
                 </div>
-                <div className="col-span-2">
+                <div>
+                  <dt className="text-gray-500">板数</dt>
+                  <dd className="text-gray-900">{(selectedCustomer as unknown as { panel_count?: number }).panel_count ? `${(selectedCustomer as unknown as { panel_count: number }).panel_count}块` : '未填写'}</dd>
+                </div>
+                <div className="col-span-3">
                   <dt className="text-gray-500">当前阶段</dt>
                   <dd className="text-gray-900">{selectedCustomer.current_stage || '未知'}</dd>
                 </div>

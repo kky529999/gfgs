@@ -18,21 +18,24 @@
 ### 部署流程
 
 ```bash
-# 1. 本地构建
+# 1. 本地代码 push 到 GitHub
+git add .
+git commit -m "feat: description"
+git push origin main
+
+# 2. SSH 到服务器拉取并部署
+ssh root@120.27.221.35
+cd /www/wwwroot/gfgs
+git pull origin main
+npm install
 npm run build
-
-# 2. 打包部署文件
-tar -czvf gfgs-deploy.tar.gz .next node_modules package.json package-lock.json
-
-# 3. 上传到服务器（通过 scp 或其他方式）
-scp gfgs-deploy.tar.gz user@120.27.221.35:/path/to/gfgs/
-
-# 4. 在服务器上解压并重启
-ssh user@120.27.221.35
-cd /path/to/gfgs
-tar -xzvf gfgs-deploy.tar.gz
-pm2 restart gfgs  # 或其他进程管理方式
+pm2 restart gfgs
 ```
+
+### SSH 免密配置
+SSH 公钥已配置到服务器：
+- 私钥位置: `~/.ssh/id_ed25519`
+- 公钥: `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBVUq5PyF2z7GvdO/soxcqFgLCPQtMLeEwMqXQ7nBxQt`
 
 ---
 

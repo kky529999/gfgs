@@ -47,6 +47,9 @@ export async function getCustomersAction(): Promise<{
     }
     // admin and gm can see all
 
+    // Filter out deleted records by default
+    query = query.is('deleted_at', null);
+
     const { data, error } = await query;
 
     if (error) {
@@ -446,4 +449,130 @@ function getStageOperatorField(stage: CustomerStage): string | null {
     close: 'close_operator_id',
   };
   return stageOperatorFields[stage];
+}
+
+// Soft delete customer
+export async function deleteCustomerAction(
+  customerId: string
+): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const auth = await getAuthCookie();
+  if (!auth) {
+    return { success: false, error: '未登录' };
+  }
+
+  // Only admin and gm can delete customers
+  if (auth.role !== 'admin' && auth.role !== 'gm') {
+    return { success: false, error: '无权删除客户' };
+  }
+
+  try {
+    // Use supabaseAdmin for consistent data access
+    const { error } = await supabaseAdmin
+      .from('customers')
+      .update({
+        deleted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', customerId);
+
+    if (error) {
+      console.error('Error deleting customer:', error);
+      return { success: false, error: '删除客户失败' };
+    }
+
+    revalidatePath('/customers');
+    revalidatePath('/dashboard');
+
+    return { success: true };
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    return { success: false, error: '系统错误' };
+  }
+}
+
+// Restore deleted customer
+export async function restoreCustomerAction(
+  customerId: string
+): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const auth = await getAuthCookie();
+  if (!auth) {
+    return { success: false, error: '未登录' };
+  }
+
+  // Only admin and gm can restore customers
+  if (auth.role !== 'admin' && auth.role !== 'gm') {
+    return { success: false, error: '无权恢复客户' };
+  }
+
+  try {
+    // Use supabaseAdmin for consistent data access
+    const { error } = await supabaseAdmin
+      .from('customers')
+      .update({
+        deleted_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', customerId);
+
+    if (error) {
+      console.error('Error restoring customer:', error);
+      return { success: false, error: '恢复客户失败' };
+    }
+
+    revalidatePath('/customers');
+    revalidatePath('/dashboard');
+
+    return { success: true };
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    return { success: false, error: '系统错误' };
+  }
+}
+
+// Get all customers including deleted (for admin/gm to view deleted records)
+export async function getAllCustomersIncludingDeletedAction(): Promise<{
+  success: boolean;
+  data?: CustomerWithRelations[];
+  error?: string;
+}> {
+  const auth = await getAuthCookie();
+  if (!auth) {
+    return { success: false, error: '未登录' };
+  }
+
+  // Only admin and gm can view deleted records
+  if (auth.role !== 'admin' && auth.role !== 'gm') {
+    return { success: false, error: '无权访问' };
+  }
+
+  try {
+    let query = supabaseAdmin
+      .from('customers')
+      .select(
+        `
+        *,
+        salesperson:employees!salesperson_id(id, name, phone),
+        tech_assigned:employees!tech_assigned_id(id, name, phone)
+      `
+      )
+      .order('created_at', { ascending: false });
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching customers:', JSON.stringify(error, null, 2));
+      return { success: false, error: '获取客户列表失败' };
+    }
+
+    return { success: true, data: data as CustomerWithRelations[] };
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    return { success: false, error: '系统错误' };
+  }
 }
