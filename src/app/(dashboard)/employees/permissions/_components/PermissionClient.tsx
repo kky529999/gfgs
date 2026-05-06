@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { updateEmployeeRoleAction, toggleEmployeeStatusAction } from '@/lib/employees/actions';
+import { useState, useEffect } from 'react';
+import { updateEmployeeRoleAction, toggleEmployeeStatusAction, getDepartmentsAction } from '@/lib/employees/actions';
 import type { Employee, Department } from '@/types';
 
 interface EmployeeWithDepartment extends Omit<Employee, 'department'> {
@@ -19,17 +19,21 @@ const ROLE_LABELS: Record<string, string> = {
   gm: '总经理',
 };
 
-const ROLE_OPTIONS = [
-  { value: '', label: '无部门' },
-  { value: 'admin', label: '综合管理' },
-  { value: 'business', label: '业务部' },
-  { value: 'tech', label: '技术部' },
-];
-
 export function PermissionClient({ employees }: PermissionClientProps) {
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    async function loadDepartments() {
+      const result = await getDepartmentsAction();
+      if (result.success && result.data) {
+        setDepartments(result.data);
+      }
+    }
+    loadDepartments();
+  }, []);
 
   const filteredEmployees = employees.filter((emp) => {
     if (!search) return true;
@@ -40,10 +44,13 @@ export function PermissionClient({ employees }: PermissionClientProps) {
   });
 
   const handleRoleChange = async (employeeId: string, departmentId: string) => {
+    // Don't update if no change or empty (未分配)
+    if (!departmentId) return;
+
     setLoading(employeeId);
     setMessage(null);
 
-    const result = await updateEmployeeRoleAction(employeeId, departmentId || null);
+    const result = await updateEmployeeRoleAction(employeeId, departmentId);
     if (result.success) {
       setMessage({ type: 'success', text: '权限已更新' });
       setTimeout(() => window.location.reload(), 1000);
@@ -118,13 +125,13 @@ export function PermissionClient({ employees }: PermissionClientProps) {
                 员工信息
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                当前权限
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                所属部门
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 状态
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                当前部门
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                修改部门
               </th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 操作
@@ -180,9 +187,10 @@ export function PermissionClient({ employees }: PermissionClientProps) {
                       disabled={loading === employee.id}
                       className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     >
-                      {ROLE_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
+                      <option value="">未分配</option>
+                      {departments.map((dept) => (
+                        <option key={dept.id} value={dept.id}>
+                          {dept.name}
                         </option>
                       ))}
                     </select>
