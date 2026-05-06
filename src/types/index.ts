@@ -5,7 +5,7 @@
 
 // ---------- 枚举类型 ----------
 
-export type DepartmentCode = 'admin' | 'business' | 'tech';
+export type DepartmentCode = 'admin' | 'business' | 'tech' | 'gm';
 export type UserRole = 'admin' | 'business' | 'tech' | 'gm';
 
 export type CustomerStage =
