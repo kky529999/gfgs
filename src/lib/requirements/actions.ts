@@ -44,7 +44,7 @@ export async function getRequirementsAction(): Promise<{
       return { success: false, error: '获取需求列表失败' };
     }
 
-    return { success: true, data: data as Requirement[] };
+    return { success: true, data: (data || []) as Requirement[] };
   } catch (err) {
     console.error('Unexpected error:', err);
     return { success: false, error: '系统错误' };
@@ -404,11 +404,11 @@ export async function getRequirementsStatsAction(): Promise<{
     }
 
     const stats = {
-      total: data.length,
-      submitted: data.filter((r: { status: string }) => r.status === 'submitted').length,
-      in_progress: data.filter((r: { status: string }) => r.status === 'in_progress').length,
-      completed: data.filter((r: { status: string }) => r.status === 'completed').length,
-      confirmed: data.filter((r: { status: string }) => r.status === 'confirmed').length,
+      total: (data || []).length,
+      submitted: (data || []).filter((r: { status: string }) => r.status === 'submitted').length,
+      in_progress: (data || []).filter((r: { status: string }) => r.status === 'in_progress').length,
+      completed: (data || []).filter((r: { status: string }) => r.status === 'completed').length,
+      confirmed: (data || []).filter((r: { status: string }) => r.status === 'confirmed').length,
     };
 
     return { success: true, data: stats };
